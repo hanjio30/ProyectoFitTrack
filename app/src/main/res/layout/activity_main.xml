@@ -1,19 +1,248 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@drawable/background_pattern"
     tools:context=".MainActivity">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Hello World!"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+    <ViewFlipper
+        android:id="@+id/viewFlipper"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+        <!-- PANTALLA INICIAL -->
+        <LinearLayout
+            android:id="@+id/initialScreen"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="32dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="FitTrack"
+                android:textSize="40sp"
+                android:textColor="@android:color/white"
+                android:fontFamily="monospace"
+                android:layout_marginBottom="80dp" />
+
+            <ImageView
+                android:layout_width="300dp"
+                android:layout_height="300dp"
+                android:layout_marginBottom="100dp"
+                android:src="@drawable/runner_icon" />
+
+            <Button
+                android:id="@+id/btnStart"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="40dp"
+                android:backgroundTint="@color/bt_main"
+                android:paddingHorizontal="40dp"
+                android:paddingVertical="12dp"
+                android:text="START!"
+                android:textColor="@android:color/white"
+                android:textSize="18sp" />
+
+        </LinearLayout>
+
+        <!-- PANTALLA DE LOGIN -->
+        <LinearLayout
+            android:id="@+id/loginScreen"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="32dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="FitTrack"
+                android:textSize="40sp"
+                android:textColor="@android:color/white"
+                android:fontFamily="monospace"
+                android:layout_marginBottom="30dp" />
+
+            <ImageView
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:src="@drawable/app_icon"
+                android:layout_marginBottom="40dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Ingrese su nombre de usuario"
+                android:textSize="16sp"
+                android:textColor="@android:color/white"
+                android:layout_marginBottom="8dp" />
+
+            <EditText
+                android:id="@+id/etUsername"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:background="@drawable/edittext_rounded"
+                android:hint="Username"
+                android:textColorHint="@android:color/darker_gray"
+                android:textColor="@android:color/white"
+                android:paddingHorizontal="16dp"
+                android:layout_marginBottom="25dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Ingrese su contraseña"
+                android:textSize="16sp"
+                android:textColor="@android:color/white"
+                android:layout_marginBottom="8dp" />
+
+            <EditText
+                android:id="@+id/etLoginPassword"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:background="@drawable/edittext_rounded"
+                android:hint="Password"
+                android:textColorHint="@android:color/darker_gray"
+                android:textColor="@android:color/white"
+                android:paddingHorizontal="16dp"
+                android:inputType="textPassword"
+                android:layout_marginBottom="35dp" />
+
+            <Button
+                android:id="@+id/btnLogin"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="START!"
+                android:textSize="18sp"
+                android:textColor="@android:color/white"
+                android:backgroundTint="@color/bt_main"
+                android:paddingHorizontal="40dp"
+                android:paddingVertical="12dp"
+                android:layout_marginBottom="20dp" />
+
+            <Button
+                android:id="@+id/btnRegistro"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="REGISTRARSE"
+                android:textSize="18sp"
+                android:textColor="@android:color/white"
+                android:backgroundTint="@color/bt_main"
+                android:paddingHorizontal="40dp"
+                android:paddingVertical="12dp" />
+
+        </LinearLayout>
+
+        <!-- PANTALLA DE REGISTRO -->
+        <LinearLayout
+            android:id="@+id/registerScreen"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="32dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="FitTrack"
+                android:textSize="40sp"
+                android:textColor="@android:color/white"
+                android:fontFamily="monospace"
+                android:layout_marginBottom="30dp" />
+
+            <ImageView
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:src="@drawable/app_icon"
+                android:layout_marginBottom="30dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="REGÍSTRESE"
+                android:textSize="20sp"
+                android:textColor="@android:color/white"
+                android:fontFamily="sans-serif-medium"
+                android:layout_marginBottom="30dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Nombres y Apellidos"
+                android:textSize="16sp"
+                android:textColor="@android:color/white"
+                android:layout_marginBottom="8dp" />
+
+            <EditText
+                android:id="@+id/etFullName"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:background="@drawable/edittext_rounded"
+                android:hint="Username"
+                android:textColorHint="@android:color/darker_gray"
+                android:textColor="@android:color/white"
+                android:paddingHorizontal="16dp"
+                android:layout_marginBottom="20dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Correo"
+                android:textSize="16sp"
+                android:textColor="@android:color/white"
+                android:layout_marginBottom="8dp" />
+
+            <EditText
+                android:id="@+id/etEmail"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:background="@drawable/edittext_rounded"
+                android:hint="Mail"
+                android:textColorHint="@android:color/darker_gray"
+                android:textColor="@android:color/white"
+                android:paddingHorizontal="16dp"
+                android:inputType="textEmailAddress"
+                android:layout_marginBottom="20dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Contraseña"
+                android:textSize="16sp"
+                android:textColor="@android:color/white"
+                android:layout_marginBottom="8dp" />
+
+            <EditText
+                android:id="@+id/etPassword"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:background="@drawable/edittext_rounded"
+                android:hint="Password"
+                android:textColorHint="@android:color/darker_gray"
+                android:textColor="@android:color/white"
+                android:paddingHorizontal="16dp"
+                android:inputType="textPassword"
+                android:layout_marginBottom="30dp" />
+
+            <Button
+                android:id="@+id/btnRegister"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="REGISTRAR!"
+                android:textSize="18sp"
+                android:textColor="@android:color/white"
+                android:backgroundTint="@color/bt_main"
+                android:paddingHorizontal="40dp"
+                android:paddingVertical="12dp" />
+
+        </LinearLayout>
+
+    </ViewFlipper>
+
+</RelativeLayout>
