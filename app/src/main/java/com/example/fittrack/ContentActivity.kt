@@ -6,12 +6,14 @@ import android.os.Bundle
 import android.view.MenuItem
 import android.view.View
 import android.widget.TextView
+import com.example.fittrack.fragments.EstadisticasFragment
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.viewpager2.widget.ViewPager2
 import com.example.fittrack.adapters.OnboardingAdapter
 import com.example.fittrack.databinding.ActivityContentBinding
+import com.example.fittrack.fragments.DashboardFragment
 import com.example.fittrack.fragments.OnboardingFragment
 import com.google.android.material.navigation.NavigationView
 import com.google.firebase.auth.FirebaseAuth
@@ -127,7 +129,11 @@ class ContentActivity : AppCompatActivity(), OnboardingFragment.OnboardingListen
         binding.frameMainContent.visibility = View.VISIBLE
 
         setupNavigationDrawer()
+        setupBottomNavigation() // ¡AGREGADO!
         loadUserData()
+
+        // Cargar el dashboard por defecto
+        loadDashboardFragment()
     }
 
     private fun setupNavigationDrawer() {
@@ -148,6 +154,30 @@ class ContentActivity : AppCompatActivity(), OnboardingFragment.OnboardingListen
         binding.ivUserAvatarMain.setOnClickListener {
             // Aquí puedes agregar lógica para mostrar opciones del usuario
         }
+    }
+
+    // ¡NUEVO MÉTODO PARA CONFIGURAR BOTTOM NAVIGATION!
+    private fun setupBottomNavigation() {
+        binding.bottomNavigationMain.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_home -> {
+                    loadDashboardFragment()
+                    true
+                }
+                R.id.nav_stats -> {
+                    loadEstadisticasFragment()
+                    true
+                }
+                R.id.nav_map -> {
+                    loadMapFragment()
+                    true
+                }
+                else -> false
+            }
+        }
+
+        // Seleccionar el item de inicio por defecto
+        binding.bottomNavigationMain.selectedItemId = R.id.nav_home
     }
 
     private fun loadUserData() {
@@ -184,16 +214,37 @@ class ContentActivity : AppCompatActivity(), OnboardingFragment.OnboardingListen
         }
     }
 
+    private fun loadDashboardFragment() {
+        val fragment = DashboardFragment()
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragmentContainer, fragment)
+            .commit()
+    }
+
+    private fun loadEstadisticasFragment() {
+        val fragment = EstadisticasFragment()
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragmentContainer, fragment)
+            .commit()
+    }
+
+    private fun loadMapFragment() {
+        // TODO: Crear y cargar MapFragment
+        // val fragment = MapFragment()
+        // supportFragmentManager.beginTransaction()
+        //     .replace(R.id.fragmentContainer, fragment)
+        //     .commit()
+    }
+
+    // ESTE MÉTODO AHORA MANEJA SOLO EL DRAWER NAVIGATION
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
             R.id.nav_perfil -> {
-                // Navegar a perfil
-                // TODO: Implementar navegación a perfil
+                // Navegar al perfil del usuario
                 handlePerfilNavigation()
             }
             R.id.nav_historial -> {
                 // Navegar a historial
-                // TODO: Implementar navegación a historial
                 handleHistorialNavigation()
             }
             R.id.nav_salir -> {
@@ -209,13 +260,18 @@ class ContentActivity : AppCompatActivity(), OnboardingFragment.OnboardingListen
 
     private fun handlePerfilNavigation() {
         // TODO: Implementar navegación a fragment de perfil
-        // Por ejemplo: supportFragmentManager.beginTransaction()
-        //   .replace(R.id.fragmentContainer, PerfilFragment())
-        //   .commit()
+        // val fragment = PerfilFragment()
+        // supportFragmentManager.beginTransaction()
+        //     .replace(R.id.fragmentContainer, fragment)
+        //     .commit()
     }
 
     private fun handleHistorialNavigation() {
         // TODO: Implementar navegación a fragment de historial
+        // val fragment = HistorialFragment()
+        // supportFragmentManager.beginTransaction()
+        //     .replace(R.id.fragmentContainer, fragment)
+        //     .commit()
     }
 
     private fun handleSalirNavigation() {

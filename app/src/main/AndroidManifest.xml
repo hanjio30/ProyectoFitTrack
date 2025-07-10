@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+    <!-- Agregar este permiso en AndroidManifest.xml antes del tag <application> -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Si quieres usar solo recursos locales, también agrega: -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
