@@ -7,6 +7,7 @@ import android.view.MenuItem
 import android.view.View
 import android.widget.TextView
 import com.example.fittrack.fragments.EstadisticasFragment
+import com.example.fittrack.fragments.MapFragment
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
@@ -129,7 +130,7 @@ class ContentActivity : AppCompatActivity(), OnboardingFragment.OnboardingListen
         binding.frameMainContent.visibility = View.VISIBLE
 
         setupNavigationDrawer()
-        setupBottomNavigation() // ¡AGREGADO!
+        setupBottomNavigation()
         loadUserData()
 
         // Cargar el dashboard por defecto
@@ -156,7 +157,6 @@ class ContentActivity : AppCompatActivity(), OnboardingFragment.OnboardingListen
         }
     }
 
-    // ¡NUEVO MÉTODO PARA CONFIGURAR BOTTOM NAVIGATION!
     private fun setupBottomNavigation() {
         binding.bottomNavigationMain.setOnItemSelectedListener { item ->
             when (item.itemId) {
@@ -229,14 +229,12 @@ class ContentActivity : AppCompatActivity(), OnboardingFragment.OnboardingListen
     }
 
     private fun loadMapFragment() {
-        // TODO: Crear y cargar MapFragment
-        // val fragment = MapFragment()
-        // supportFragmentManager.beginTransaction()
-        //     .replace(R.id.fragmentContainer, fragment)
-        //     .commit()
+        val fragment = MapFragment()
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragmentContainer, fragment)
+            .commit()
     }
 
-    // ESTE MÉTODO AHORA MANEJA SOLO EL DRAWER NAVIGATION
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
             R.id.nav_perfil -> {

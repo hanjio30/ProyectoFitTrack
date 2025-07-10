@@ -3,6 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools">
     <!-- Agregar este permiso en AndroidManifest.xml antes del tag <application> -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <!-- Si quieres usar solo recursos locales, también agrega: -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -29,6 +31,10 @@
         <activity
             android:name=".ContentActivity"
             android:exported="false" />
+
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="YOUR_API_KEY_HERE" />
     </application>
 
 </manifest>
