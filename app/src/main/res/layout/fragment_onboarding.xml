@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#FFFFFF"
+        android:padding="24dp">
+
+        <!-- Título principal -->
+        <TextView
+            android:id="@+id/tvOnboardingTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="¡Hola! Estás a punto de empezar tu camino con FitTrack."
+            android:textColor="#1f2d36"
+            android:textSize="24sp"
+            android:fontFamily="serif"
+            android:gravity="center"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="30dp"
+            android:lineSpacingExtra="4dp" />
+
+        <!-- Imagen ilustrativa -->
+        <ImageView
+            android:id="@+id/ivOnboardingImage"
+            android:layout_width="match_parent"
+            android:layout_height="200dp"
+            android:layout_marginBottom="30dp"
+            android:scaleType="centerCrop"
+            android:src="@drawable/onboarding_image"
+            android:contentDescription="Onboarding illustration" />
+
+        <!-- Spacer para empujar el contenido inferior -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <!-- Texto descriptivo -->
+        <TextView
+            android:id="@+id/tvOnboardingDescription"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="No se trata de ser perfecto, sino constante. Y tú ya diste el primer paso."
+            android:textColor="#1f2d36"
+            android:textSize="16sp"
+            android:fontFamily="serif"
+            android:gravity="center"
+            android:layout_marginBottom="30dp"
+            android:lineSpacingExtra="2dp" />
+
+        <!-- Botón de acción (solo en la última pantalla) -->
+        <Button
+            android:id="@+id/btnStartApp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="¡Iniciemos!"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:fontFamily="serif"
+            android:backgroundTint="@color/bt_secon"
+            android:layout_marginBottom="40dp"
+            android:paddingVertical="14dp"
+            android:visibility="visible" />
+
+    </LinearLayout>
+</ScrollView>

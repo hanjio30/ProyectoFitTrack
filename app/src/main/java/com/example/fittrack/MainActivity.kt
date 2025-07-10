@@ -8,6 +8,9 @@ import android.widget.EditText
 import android.widget.Toast
 import android.widget.ViewFlipper
 import androidx.appcompat.app.AppCompatActivity
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.DatabaseReference
+import com.google.firebase.database.FirebaseDatabase
 
 class MainActivity : AppCompatActivity() {
 
@@ -22,21 +25,29 @@ class MainActivity : AppCompatActivity() {
     private lateinit var etUsername: EditText
     private lateinit var etLoginPassword: EditText
 
-    // Sistema de autenticación en memoria
-    private val registeredUsers = mutableMapOf<String, UserData>()
+    // Firebase Auth y Database
+    private lateinit var firebaseAuth: FirebaseAuth
+    private lateinit var databaseReference: DatabaseReference
 
     data class UserData(
-        val fullName: String,
-        val email: String,
-        val password: String
+        val fullName: String = "",
+        val email: String = "",
+        val uid: String = ""
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        initializeFirebase()
         initializeViews()
         setupClickListeners()
+        checkUserLoggedIn()
+    }
+
+    private fun initializeFirebase() {
+        firebaseAuth = FirebaseAuth.getInstance()
+        databaseReference = FirebaseDatabase.getInstance().getReference("users")
     }
 
     private fun initializeViews() {
@@ -58,6 +69,14 @@ class MainActivity : AppCompatActivity() {
         etLoginPassword = findViewById(R.id.etLoginPassword)
     }
 
+    private fun checkUserLoggedIn() {
+        // Si el usuario ya está logueado, ir directamente a ContentActivity
+        if (firebaseAuth.currentUser != null) {
+            startActivity(Intent(this, ContentActivity::class.java))
+            finish()
+        }
+    }
+
     private fun setupClickListeners() {
         // Botón START inicial - va a pantalla de login
         btnStart.setOnClickListener {
@@ -69,27 +88,17 @@ class MainActivity : AppCompatActivity() {
             viewFlipper.displayedChild = 2 // Mostrar pantalla de registro
         }
 
-        // Botón de registro - guarda datos y vuelve a login
+        // Botón de registro - registra con Firebase Auth
         btnRegister.setOnClickListener {
             if (validateRegistration()) {
-                registerUser()
-                viewFlipper.displayedChild = 1 // Volver a pantalla de login
-                Toast.makeText(this, "Registro exitoso. Ahora puedes iniciar sesión", Toast.LENGTH_SHORT).show()
-                clearRegistrationFields()
+                registerUserWithFirebase()
             }
         }
 
-        // Botón de login - autentica y va a ContentActivity
+        // Botón de login - autentica con Firebase Auth
         btnLogin.setOnClickListener {
             if (validateLogin()) {
-                if (authenticateUser()) {
-                    Toast.makeText(this, "Login exitoso", Toast.LENGTH_SHORT).show()
-                    // Ir a ContentActivity
-                    startActivity(Intent(this, ContentActivity::class.java))
-                    finish()
-                } else {
-                    Toast.makeText(this, "Usuario o contraseña incorrectos", Toast.LENGTH_SHORT).show()
-                }
+                loginUserWithFirebase()
             }
         }
     }
@@ -124,27 +133,20 @@ class MainActivity : AppCompatActivity() {
             return false
         }
 
-        // Verificar si el usuario ya existe
-        if (registeredUsers.containsKey(fullName)) {
-            etFullName.error = "Este usuario ya existe"
-            return false
-        }
-
-        // Verificar si el email ya existe
-        if (registeredUsers.values.any { it.email == email }) {
-            etEmail.error = "Este correo ya está registrado"
-            return false
-        }
-
         return true
     }
 
     private fun validateLogin(): Boolean {
-        val username = etUsername.text.toString().trim()
+        val email = etUsername.text.toString().trim()
         val password = etLoginPassword.text.toString().trim()
 
-        if (username.isEmpty()) {
-            etUsername.error = "Ingrese su nombre de usuario"
+        if (email.isEmpty()) {
+            etUsername.error = "Ingrese su correo electrónico"
+            return false
+        }
+
+        if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            etUsername.error = "Ingrese un correo válido"
             return false
         }
 
@@ -156,21 +158,89 @@ class MainActivity : AppCompatActivity() {
         return true
     }
 
-    private fun registerUser() {
+    private fun registerUserWithFirebase() {
         val fullName = etFullName.text.toString().trim()
         val email = etEmail.text.toString().trim()
         val password = etPassword.text.toString().trim()
 
-        val userData = UserData(fullName, email, password)
-        registeredUsers[fullName] = userData
+        // Mostrar progreso
+        Toast.makeText(this, "Registrando usuario...", Toast.LENGTH_SHORT).show()
+
+        // Crear usuario con Firebase Auth
+        firebaseAuth.createUserWithEmailAndPassword(email, password)
+            .addOnCompleteListener(this) { task ->
+                if (task.isSuccessful) {
+                    // Registro exitoso
+                    val user = firebaseAuth.currentUser
+                    user?.let { firebaseUser ->
+                        // Guardar datos adicionales en Firebase Database
+                        val userData = UserData(
+                            fullName = fullName,
+                            email = email,
+                            uid = firebaseUser.uid
+                        )
+
+                        // Guardar en la base de datos
+                        databaseReference.child(firebaseUser.uid).setValue(userData)
+                            .addOnSuccessListener {
+                                // Todo exitoso - ir directamente a ContentActivity
+                                Toast.makeText(this, "Registro exitoso. Bienvenido!", Toast.LENGTH_SHORT).show()
+                                startActivity(Intent(this, ContentActivity::class.java))
+                                finish()
+                            }
+                            .addOnFailureListener { exception ->
+                                Toast.makeText(this, "Error al guardar datos: ${exception.message}", Toast.LENGTH_SHORT).show()
+                            }
+                    }
+                } else {
+                    // Error en el registro
+                    val errorMessage = when {
+                        task.exception?.message?.contains("email address is already in use") == true ->
+                            "Este correo ya está registrado"
+                        task.exception?.message?.contains("weak password") == true ->
+                            "La contraseña es muy débil"
+                        task.exception?.message?.contains("invalid email") == true ->
+                            "El correo electrónico no es válido"
+                        else -> "Error en el registro: ${task.exception?.message}"
+                    }
+                    Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
+                }
+            }
     }
 
-    private fun authenticateUser(): Boolean {
-        val username = etUsername.text.toString().trim()
+    private fun loginUserWithFirebase() {
+        val email = etUsername.text.toString().trim()
         val password = etLoginPassword.text.toString().trim()
 
-        val userData = registeredUsers[username]
-        return userData != null && userData.password == password
+        // Mostrar progreso
+        Toast.makeText(this, "Iniciando sesión...", Toast.LENGTH_SHORT).show()
+
+        // Autenticar con Firebase Auth
+        firebaseAuth.signInWithEmailAndPassword(email, password)
+            .addOnCompleteListener(this) { task ->
+                if (task.isSuccessful) {
+                    // Login exitoso
+                    Toast.makeText(this, "Login exitoso", Toast.LENGTH_SHORT).show()
+
+                    // Ir a ContentActivity
+                    startActivity(Intent(this, ContentActivity::class.java))
+                    finish()
+                } else {
+                    // Error en el login
+                    val errorMessage = when {
+                        task.exception?.message?.contains("user not found") == true ->
+                            "Usuario no encontrado"
+                        task.exception?.message?.contains("wrong password") == true ->
+                            "Contraseña incorrecta"
+                        task.exception?.message?.contains("invalid email") == true ->
+                            "Correo electrónico no válido"
+                        task.exception?.message?.contains("user disabled") == true ->
+                            "Usuario deshabilitado"
+                        else -> "Error en el login: ${task.exception?.message}"
+                    }
+                    Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
+                }
+            }
     }
 
     private fun clearRegistrationFields() {
