@@ -6,6 +6,8 @@ import android.os.Bundle
 import android.view.MenuItem
 import android.view.View
 import android.widget.TextView
+import com.example.fittrack.fragments.PerfilFragment
+import com.example.fittrack.fragments.RecorridoFragment
 import com.example.fittrack.fragments.EstadisticasFragment
 import com.example.fittrack.fragments.MapFragment
 import androidx.appcompat.app.ActionBarDrawerToggle
@@ -238,38 +240,34 @@ class ContentActivity : AppCompatActivity(), OnboardingFragment.OnboardingListen
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
             R.id.nav_perfil -> {
-                // Navegar al perfil del usuario
                 handlePerfilNavigation()
             }
             R.id.nav_historial -> {
-                // Navegar a historial
                 handleHistorialNavigation()
             }
             R.id.nav_salir -> {
-                // Cerrar sesión o salir
                 handleSalirNavigation()
             }
         }
 
-        // Cerrar el drawer después de seleccionar
         binding.drawerLayout.closeDrawer(GravityCompat.START)
         return true
     }
 
     private fun handlePerfilNavigation() {
-        // TODO: Implementar navegación a fragment de perfil
-        // val fragment = PerfilFragment()
-        // supportFragmentManager.beginTransaction()
-        //     .replace(R.id.fragmentContainer, fragment)
-        //     .commit()
+        val fragment = PerfilFragment()
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragmentContainer, fragment)
+            .commit()
     }
 
+
+
     private fun handleHistorialNavigation() {
-        // TODO: Implementar navegación a fragment de historial
-        // val fragment = HistorialFragment()
-        // supportFragmentManager.beginTransaction()
-        //     .replace(R.id.fragmentContainer, fragment)
-        //     .commit()
+        val fragment = RecorridoFragment()
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragmentContainer, fragment)
+            .commit()
     }
 
     private fun handleSalirNavigation() {

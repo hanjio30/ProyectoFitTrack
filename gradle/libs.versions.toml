@@ -18,6 +18,9 @@ lifecycleExtensions = "2.2.0"
 databindingAdapters = "8.11.0"
 databindingRuntime = "8.11.0"
 cardview = "1.0.0"
+circleimageview = "3.1.0"
+glide = "4.16.0"
+
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -37,8 +40,14 @@ androidx-lifecycle-extensions = { group = "androidx.lifecycle", name = "lifecycl
 androidx-databinding-adapters = { group = "androidx.databinding", name = "databinding-adapters", version.ref = "databindingAdapters" }
 androidx-databinding-runtime = { group = "androidx.databinding", name = "databinding-runtime", version.ref = "databindingRuntime" }
 androidx-cardview = { group = "androidx.cardview", name = "cardview", version.ref = "cardview" }
+circleimageview = { module = "de.hdodenhof:circleimageview", version.ref = "circleimageview" }
+glide = { module = "com.github.bumptech.glide:glide", version.ref = "glide" }
+glideCompiler = { module = "com.github.bumptech.glide:compiler", version.ref = "glide" }
+
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin"}
+
 
