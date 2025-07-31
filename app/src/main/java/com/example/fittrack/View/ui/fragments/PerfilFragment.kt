@@ -1,4 +1,4 @@
-package com.example.fittrack.fragments
+package com.example.fittrack.View.ui.fragments
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle

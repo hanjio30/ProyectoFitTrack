@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/background_pattern"
-    tools:context=".MainActivity">
+    tools:context=".View.ui.activities.MainActivity">
 
     <ViewFlipper
         android:id="@+id/viewFlipper"

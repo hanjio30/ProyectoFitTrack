@@ -1,9 +1,9 @@
-package com.example.fittrack.adapters
+package com.example.fittrack.View.Adapters
 
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.viewpager2.adapter.FragmentStateAdapter
-import com.example.fittrack.fragments.OnboardingFragment
+import com.example.fittrack.View.ui.fragments.OnboardingFragment
 
 class OnboardingAdapter(
     fragmentActivity: FragmentActivity,

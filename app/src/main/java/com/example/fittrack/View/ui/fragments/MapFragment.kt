@@ -1,4 +1,4 @@
-package com.example.fittrack.fragments
+package com.example.fittrack.View.ui.fragments
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -22,8 +22,6 @@ import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.*
-import java.text.SimpleDateFormat
-import java.util.*
 import kotlin.collections.ArrayList
 
 class MapFragment : Fragment(), OnMapReadyCallback {
