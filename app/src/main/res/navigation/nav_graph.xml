@@ -20,7 +20,29 @@ app:startDestination="@id/dashboardFragment">
             app:exitAnim="@anim/slide_out_left"
             app:popEnterAnim="@anim/slide_in_left"
             app:popExitAnim="@anim/slide_out_right" />
+
+        <!-- Acción para navegar a estadísticas -->
+        <action
+            android:id="@+id/action_dashboard_to_estadisticas"
+            app:destination="@id/estadisticasFragment" />
+
+        <!-- Acción para navegar a mapa -->
+        <action
+            android:id="@+id/action_dashboard_to_map"
+            app:destination="@id/mapFragment" />
+
+        <!-- Acción para navegar a perfil -->
+        <action
+            android:id="@+id/action_dashboard_to_perfil"
+            app:destination="@id/perfilFragment" />
+
+        <!-- Acción para navegar a recorrido -->
+        <action
+            android:id="@+id/action_dashboard_to_recorrido"
+            app:destination="@id/recorridoFragment" />
     </fragment>
+
+
 
     <!-- Distancia Recorrida Fragment -->
     <fragment
@@ -29,11 +51,72 @@ app:startDestination="@id/dashboardFragment">
         android:label="Distancia Recorrida"
         tools:layout="@layout/distancia_recorrida">
 
-        <!-- Argumentos que puede recibir (opcional) -->
+        <!-- Argumentos opcionales -->
         <argument
             android:name="userName"
             app:argType="string"
-            app:nullable="true" />
+            app:nullable="true"
+            android:defaultValue="Usuario" />
+
+        <!-- Acción para volver al dashboard -->
+        <action
+            android:id="@+id/action_distance_to_dashboard"
+            app:destination="@id/dashboardFragment"
+            app:popUpTo="@id/dashboardFragment"
+            app:popUpToInclusive="false" />
+    </fragment>
+
+    <!-- Estadísticas Fragment -->
+    <fragment
+        android:id="@+id/estadisticasFragment"
+        android:name="com.example.fittrack.View.ui.fragments.EstadisticasFragment"
+        android:label="Estadísticas"
+        tools:layout="@layout/fragment_estadisticas">
+
+        <action
+            android:id="@+id/action_estadisticas_to_dashboard"
+            app:destination="@id/dashboardFragment" />
+    </fragment>
+
+    <!-- Map Fragment -->
+    <fragment
+        android:id="@+id/mapFragment"
+        android:name="com.example.fittrack.View.ui.fragments.MapFragment"
+        android:label="Mapa"
+        tools:layout="@layout/fragment_map">
+
+        <action
+            android:id="@+id/action_map_to_dashboard"
+            app:destination="@id/dashboardFragment" />
+    </fragment>
+
+    <!-- Perfil Fragment -->
+    <fragment
+        android:id="@+id/perfilFragment"
+        android:name="com.example.fittrack.View.ui.fragments.PerfilFragment"
+        android:label="Perfil"
+        tools:layout="@layout/fragment_perfil">
+
+        <action
+            android:id="@+id/action_perfil_to_dashboard"
+            app:destination="@id/dashboardFragment" />
+    </fragment>
+
+    <!-- Recorrido Fragment -->
+    <fragment
+        android:id="@+id/recorridoFragment"
+        android:name="com.example.fittrack.View.ui.fragments.RecorridoFragment"
+        android:label="Historial de Recorridos"
+        tools:layout="@layout/fragment_recorrido">
+
+        <action
+            android:id="@+id/action_recorrido_to_dashboard"
+            app:destination="@id/dashboardFragment" />
+
+        <!-- Acción para navegar a detalles de distancia desde historial -->
+        <action
+            android:id="@+id/action_recorrido_to_distance"
+            app:destination="@id/distRecorridaFragment" />
     </fragment>
 
 </navigation>

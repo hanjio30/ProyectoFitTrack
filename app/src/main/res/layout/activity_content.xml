@@ -182,12 +182,23 @@
 
                 </LinearLayout>
 
-                <!-- Fragment container -->
+                <!-- ✅ AQUÍ ES EL CAMBIO PRINCIPAL: NavHostFragment reemplaza al fragmentContainer -->
+                <androidx.fragment.app.FragmentContainerView
+                    android:id="@+id/nav_host_fragment"
+                    android:name="androidx.navigation.fragment.NavHostFragment"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    app:defaultNavHost="true"
+                    app:navGraph="@navigation/nav_graph" />
+
+                <!-- ✅ MANTENER EL FRAGMENT CONTAINER ORIGINAL COMO FALLBACK (OCULTO) -->
                 <FrameLayout
                     android:id="@+id/fragmentContainer"
                     android:layout_width="match_parent"
                     android:layout_height="0dp"
-                    android:layout_weight="1" />
+                    android:layout_weight="1"
+                    android:visibility="gone" />
 
                 <!-- Bottom Navigation para contenido principal -->
                 <com.google.android.material.bottomnavigation.BottomNavigationView

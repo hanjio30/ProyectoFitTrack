@@ -345,6 +345,7 @@
                 android:foreground="?android:attr/selectableItemBackground">
 
                 <LinearLayout
+                    android:id="@+id/cardDistancia"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:background="#f8f9fa"

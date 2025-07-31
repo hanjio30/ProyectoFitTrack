@@ -7,8 +7,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.Toast
+import androidx.cardview.widget.CardView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.navigation.fragment.findNavController
 import com.example.fittrack.R
 import com.example.fittrack.ViewModel.DashboardViewModel
 
@@ -27,6 +29,9 @@ class DashboardFragment : Fragment() {
     private var tvStreakValue: TextView? = null
     private var tvDistanceValue: TextView? = null
     private var tvGoalValue: TextView? = null
+
+    // Cards clickeables
+    private var cardDistance: CardView? = null
 
     companion object {
         private const val TAG = "DashboardFragment"
@@ -82,6 +87,7 @@ class DashboardFragment : Fragment() {
 
             initializeViewModel()
             initializeViews(view)
+            setupClickListeners()
             setupObservers()
             loadData()
 
@@ -117,14 +123,66 @@ class DashboardFragment : Fragment() {
             tvDistanceValue = view.findViewById(R.id.tvDistanceValue)
             tvGoalValue = view.findViewById(R.id.tvGoalValue)
 
-            Log.d(TAG, "Vistas inicializadas")
+            // Inicializar cards clickeables
+            cardDistance = view.findViewById(R.id.cardDistance)
 
-            // Verificar qué vistas se encontraron
-            Log.d(TAG, "tvGreeting: ${if (tvGreeting != null) "✓" else "✗"}")
-            Log.d(TAG, "tvCaloriesValue: ${if (tvCaloriesValue != null) "✓" else "✗"}")
+            Log.d(TAG, "Vistas inicializadas")
+            Log.d(TAG, "cardDistance: ${if (cardDistance != null) "✓" else "✗"}")
 
         } catch (e: Exception) {
             Log.e(TAG, "Error al inicializar vistas: ${e.message}", e)
+        }
+    }
+
+    // ✅ CONFIGURAR CLICKS CON NAVIGATION COMPONENT
+    private fun setupClickListeners() {
+        try {
+            Log.d(TAG, "Configurando click listeners")
+
+            // Click listener para el card de distancia
+            cardDistance?.setOnClickListener {
+                Log.d(TAG, "Click en card de distancia - Navegando...")
+                navigateToDistanceFragment()
+            }
+
+            // Puedes agregar más cards aquí
+            /*
+            cardCalories?.setOnClickListener {
+                navigateToCaloriesFragment()
+            }
+            */
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al configurar click listeners: ${e.message}", e)
+        }
+    }
+
+    // ✅ NAVEGACIÓN CON NAVIGATION COMPONENT
+    private fun navigateToDistanceFragment() {
+        try {
+            // Navegar usando Navigation Component
+            findNavController().navigate(R.id.action_dashboard_to_distance)
+            Log.d(TAG, "Navegación iniciada a DistRecorridaFragment")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al navegar: ${e.message}", e)
+            showError("Error al abrir estadísticas de distancia")
+        }
+    }
+
+    // ✅ FUNCIÓN PARA NAVEGAR CON DATOS (ejemplo)
+    private fun navigateToDistanceWithData(userName: String) {
+        try {
+            // Si quieres pasar datos, usa Bundle
+            val bundle = Bundle().apply {
+                putString("userName", userName)
+            }
+
+            findNavController().navigate(R.id.action_dashboard_to_distance, bundle)
+            Log.d(TAG, "Navegación con datos iniciada")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al navegar con datos: ${e.message}", e)
         }
     }
 
@@ -193,11 +251,12 @@ class DashboardFragment : Fragment() {
     private fun handleLoadingState(isLoading: Boolean) {
         try {
             if (isLoading) {
-                // Mostrar algún indicador de carga simple
-                // Por ejemplo, deshabilitar las vistas o mostrar un mensaje
                 Log.d(TAG, "Cargando datos...")
+                // Aquí puedes mostrar un ProgressBar o deshabilitar cards
+                cardDistance?.isEnabled = false
             } else {
                 Log.d(TAG, "Carga completada")
+                cardDistance?.isEnabled = true
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error al manejar estado de carga: ${e.message}", e)
@@ -227,7 +286,7 @@ class DashboardFragment : Fragment() {
         }
     }
 
-    // Método público para actualizar estadísticas (puede ser llamado desde otros fragments/activities)
+    // Método público para actualizar estadísticas
     fun updateStats(stats: DashboardViewModel.UserStats) {
         try {
             if (::dashboardViewModel.isInitialized) {
@@ -242,7 +301,6 @@ class DashboardFragment : Fragment() {
         super.onResume()
         Log.d(TAG, "DashboardFragment onResume")
 
-        // Refrescar datos cuando el fragment vuelve a ser visible
         try {
             if (::dashboardViewModel.isInitialized) {
                 dashboardViewModel.refreshData()
@@ -271,5 +329,6 @@ class DashboardFragment : Fragment() {
         tvStreakValue = null
         tvDistanceValue = null
         tvGoalValue = null
+        cardDistance = null
     }
 }

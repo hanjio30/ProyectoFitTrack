@@ -9,10 +9,14 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.lifecycle.ViewModelProvider
+import androidx.navigation.NavController
+import androidx.navigation.fragment.NavHostFragment
+import androidx.navigation.ui.AppBarConfiguration
+import androidx.navigation.ui.navigateUp
 import androidx.viewpager2.widget.ViewPager2
 import com.example.fittrack.R
 import com.example.fittrack.View.Adapters.OnboardingAdapter
-import com.example.fittrack.View.ui.fragments.*
+import com.example.fittrack.View.ui.fragments.OnboardingFragment
 import com.example.fittrack.ViewModel.ContentViewModel
 import com.example.fittrack.databinding.ActivityContentBinding
 import com.google.android.material.navigation.NavigationView
@@ -25,6 +29,11 @@ class ContentActivity : AppCompatActivity(),
     private lateinit var viewModel: ContentViewModel
     private lateinit var onboardingAdapter: OnboardingAdapter
     private lateinit var sharedPreferences: SharedPreferences
+
+    // Navigation Component
+    private var navController: NavController? = null
+    private var appBarConfiguration: AppBarConfiguration? = null
+
     private val indicators = mutableListOf<View>()
 
     // Views del navigation header
@@ -46,7 +55,6 @@ class ContentActivity : AppCompatActivity(),
 
             // Inicializar ViewModel
             viewModel = ViewModelProvider(this)[ContentViewModel::class.java]
-
             sharedPreferences = getSharedPreferences(ContentViewModel.PREF_NAME, MODE_PRIVATE)
 
             setupObservers()
@@ -61,6 +69,45 @@ class ContentActivity : AppCompatActivity(),
         } catch (e: Exception) {
             Log.e(TAG, "Error en onCreate: ${e.message}", e)
             finish()
+        }
+    }
+
+    private fun setupNavigation() {
+        try {
+            Log.d(TAG, "Configurando Navigation Component")
+
+            // Obtener el NavHostFragment
+            val navHostFragment = supportFragmentManager
+                .findFragmentById(R.id.nav_host_fragment) as? NavHostFragment
+
+            if (navHostFragment != null) {
+                navController = navHostFragment.navController
+
+                // Configurar AppBar con Navigation
+                appBarConfiguration = AppBarConfiguration(
+                    setOf(
+                        R.id.dashboardFragment,
+                        R.id.estadisticasFragment,
+                        R.id.mapFragment
+                    ),
+                    binding.drawerLayout
+                )
+
+                Log.d(TAG, "Navigation Component configurado exitosamente")
+
+                // ✅ OCULTAR EL FRAGMENT CONTAINER MANUAL
+                binding.fragmentContainer.visibility = View.GONE
+
+            } else {
+                Log.w(TAG, "NavHostFragment no encontrado, usando navegación manual")
+                // ✅ MOSTRAR EL FRAGMENT CONTAINER COMO FALLBACK
+                binding.fragmentContainer.visibility = View.VISIBLE
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al configurar Navigation Component: ${e.message}", e)
+            // En caso de error, usar navegación manual
+            binding.fragmentContainer.visibility = View.VISIBLE
         }
     }
 
@@ -80,6 +127,7 @@ class ContentActivity : AppCompatActivity(),
                 if (showMainContent) {
                     binding.frameOnboarding.visibility = View.GONE
                     binding.frameMainContent.visibility = View.VISIBLE
+                    setupNavigation() // ✅ Configurar Navigation cuando se muestra el contenido principal
                 }
             }
 
@@ -93,23 +141,9 @@ class ContentActivity : AppCompatActivity(),
                 tvUserEmail?.text = userEmail
             }
 
-            // Observer para cambios de fragmento
+            // ✅ OBSERVER ACTUALIZADO: Usar Navigation Component PRIMERO
             viewModel.currentFragment.observe(this) { fragmentType ->
-                when (fragmentType) {
-                    ContentViewModel.FragmentType.DASHBOARD -> loadDashboardFragment()
-                    ContentViewModel.FragmentType.ESTADISTICAS -> loadEstadisticasFragment()
-                    ContentViewModel.FragmentType.MAP -> loadMapFragment()
-                    ContentViewModel.FragmentType.PERFIL -> loadPerfilFragment()
-                    ContentViewModel.FragmentType.RECORRIDO -> loadRecorridoFragment()
-                }
-            }
-
-            // Observer para refrescar dashboard
-            viewModel.refreshDashboard.observe(this) { shouldRefresh ->
-                if (shouldRefresh) {
-                    refreshDashboardIfVisible()
-                    viewModel.resetRefreshDashboard()
-                }
+                navigateToFragment(fragmentType)
             }
 
             // Observer para logout
@@ -125,14 +159,73 @@ class ContentActivity : AppCompatActivity(),
         }
     }
 
+    // ✅ MÉTODO UNIFICADO DE NAVEGACIÓN
+    private fun navigateToFragment(fragmentType: ContentViewModel.FragmentType) {
+        try {
+            // Intentar usar Navigation Component primero
+            navController?.let { controller ->
+                when (fragmentType) {
+                    ContentViewModel.FragmentType.DASHBOARD -> {
+                        if (controller.currentDestination?.id != R.id.dashboardFragment) {
+                            controller.navigate(R.id.dashboardFragment)
+                        }
+                    }
+                    ContentViewModel.FragmentType.ESTADISTICAS -> {
+                        if (controller.currentDestination?.id != R.id.estadisticasFragment) {
+                            controller.navigate(R.id.estadisticasFragment)
+                        }
+                    }
+                    ContentViewModel.FragmentType.MAP -> {
+                        if (controller.currentDestination?.id != R.id.mapFragment) {
+                            controller.navigate(R.id.mapFragment)
+                        }
+                    }
+                    ContentViewModel.FragmentType.PERFIL -> {
+                        if (controller.currentDestination?.id != R.id.perfilFragment) {
+                            controller.navigate(R.id.perfilFragment)
+                        }
+                    }
+                    ContentViewModel.FragmentType.RECORRIDO -> {
+                        if (controller.currentDestination?.id != R.id.recorridoFragment) {
+                            controller.navigate(R.id.recorridoFragment)
+                        }
+                    }
+                }
+                return
+            }
+
+            // ✅ FALLBACK: Si Navigation Component no está disponible, usar método manual
+            Log.w(TAG, "NavController no disponible, usando navegación manual")
+            navigateManually(fragmentType)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error en navegación: ${e.message}", e)
+            // En caso de error, usar navegación manual
+            navigateManually(fragmentType)
+        }
+    }
+
+    // ✅ NAVEGACIÓN MANUAL COMO FALLBACK
+    private fun navigateManually(fragmentType: ContentViewModel.FragmentType) {
+        try {
+            when (fragmentType) {
+                ContentViewModel.FragmentType.DASHBOARD -> loadDashboardFragment()
+                ContentViewModel.FragmentType.ESTADISTICAS -> loadEstadisticasFragment()
+                ContentViewModel.FragmentType.MAP -> loadMapFragment()
+                ContentViewModel.FragmentType.PERFIL -> loadPerfilFragment()
+                ContentViewModel.FragmentType.RECORRIDO -> loadRecorridoFragment()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error en navegación manual: ${e.message}", e)
+        }
+    }
+
     private fun setupOnboarding() {
         try {
             Log.d(TAG, "Configurando onboarding")
-
             setupViewPager()
             setupIndicators()
 
-            // Configurar el menú hamburguesa durante onboarding (opcional)
             binding.ivHamburgerMenu?.setOnClickListener {
                 Log.d(TAG, "Click en hamburger menu durante onboarding")
             }
@@ -166,7 +259,6 @@ class ContentActivity : AppCompatActivity(),
             binding.indicator3?.let { indicators.add(it) }
             binding.indicator4?.let { indicators.add(it) }
             binding.indicator5?.let { indicators.add(it) }
-
             updateIndicators(0)
         } catch (e: Exception) {
             Log.e(TAG, "Error en setupIndicators: ${e.message}", e)
@@ -200,29 +292,22 @@ class ContentActivity : AppCompatActivity(),
         try {
             Log.d(TAG, "Configurando Navigation Drawer")
 
-            // Configurar el NavigationView
             binding.navigationView?.setNavigationItemSelectedListener(this)
 
-            // Obtener las vistas del header de forma segura
             val headerView = binding.navigationView?.getHeaderView(0)
             if (headerView != null) {
                 tvUserName = headerView.findViewById(R.id.tvUserName)
                 tvUserEmail = headerView.findViewById(R.id.tvUserEmail)
                 Log.d(TAG, "Vistas del header obtenidas exitosamente")
-            } else {
-                Log.w(TAG, "HeaderView es null")
             }
 
-            // Configurar el click del hamburger menu
             binding.ivHamburgerMenuMain?.setOnClickListener {
                 Log.d(TAG, "Click en hamburger menu principal")
                 binding.drawerLayout?.openDrawer(GravityCompat.START)
             }
 
-            // Configurar el click del avatar (opcional)
             binding.ivUserAvatarMain?.setOnClickListener {
                 Log.d(TAG, "Click en avatar principal")
-                // Aquí puedes agregar lógica para mostrar opciones del usuario
             }
 
         } catch (e: Exception) {
@@ -252,86 +337,10 @@ class ContentActivity : AppCompatActivity(),
                 }
             }
 
-            // Seleccionar el item de inicio por defecto
             binding.bottomNavigationMain?.selectedItemId = R.id.nav_home
 
         } catch (e: Exception) {
             Log.e(TAG, "Error en setupBottomNavigation: ${e.message}", e)
-        }
-    }
-
-    private fun refreshDashboardIfVisible() {
-        try {
-            // Verificar si el DashboardFragment está actualmente visible
-            val currentFragment = supportFragmentManager.findFragmentById(R.id.fragmentContainer)
-            if (currentFragment is DashboardFragment) {
-                Log.d(TAG, "Recargando DashboardFragment con nuevo nombre de usuario")
-                loadDashboardFragment()
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error en refreshDashboardIfVisible: ${e.message}", e)
-        }
-    }
-
-    private fun loadDashboardFragment() {
-        try {
-            val userName = viewModel.getCurrentUserName()
-            Log.d(TAG, "Cargando DashboardFragment con usuario: $userName")
-            val fragment = DashboardFragment.newInstance(userName)
-            supportFragmentManager.beginTransaction()
-                .replace(R.id.fragmentContainer, fragment)
-                .commitAllowingStateLoss()
-            Log.d(TAG, "DashboardFragment cargado exitosamente")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error al cargar DashboardFragment: ${e.message}", e)
-        }
-    }
-
-    private fun loadEstadisticasFragment() {
-        try {
-            Log.d(TAG, "Cargando EstadisticasFragment")
-            val fragment = EstadisticasFragment()
-            supportFragmentManager.beginTransaction()
-                .replace(R.id.fragmentContainer, fragment)
-                .commitAllowingStateLoss()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error al cargar EstadisticasFragment: ${e.message}", e)
-        }
-    }
-
-    private fun loadMapFragment() {
-        try {
-            Log.d(TAG, "Cargando MapFragment")
-            val fragment = MapFragment()
-            supportFragmentManager.beginTransaction()
-                .replace(R.id.fragmentContainer, fragment)
-                .commitAllowingStateLoss()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error al cargar MapFragment: ${e.message}", e)
-        }
-    }
-
-    private fun loadPerfilFragment() {
-        try {
-            Log.d(TAG, "Cargando PerfilFragment")
-            val fragment = PerfilFragment()
-            supportFragmentManager.beginTransaction()
-                .replace(R.id.fragmentContainer, fragment)
-                .commitAllowingStateLoss()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error al cargar PerfilFragment: ${e.message}", e)
-        }
-    }
-
-    private fun loadRecorridoFragment() {
-        try {
-            Log.d(TAG, "Cargando RecorridoFragment")
-            val fragment = RecorridoFragment()
-            supportFragmentManager.beginTransaction()
-                .replace(R.id.fragmentContainer, fragment)
-                .commitAllowingStateLoss()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error al cargar RecorridoFragment: ${e.message}", e)
         }
     }
 
@@ -357,13 +366,19 @@ class ContentActivity : AppCompatActivity(),
         }
     }
 
+    override fun onSupportNavigateUp(): Boolean {
+        return navController?.navigateUp(appBarConfiguration!!) == true || super.onSupportNavigateUp()
+    }
+
     override fun onBackPressed() {
         try {
             if (binding.frameMainContent.visibility == View.VISIBLE) {
                 if (binding.drawerLayout?.isDrawerOpen(GravityCompat.START) == true) {
                     binding.drawerLayout?.closeDrawer(GravityCompat.START)
                 } else {
-                    super.onBackPressed()
+                    if (navController?.navigateUp() != true) {
+                        super.onBackPressed()
+                    }
                 }
             } else if (binding.frameOnboarding.visibility == View.VISIBLE) {
                 val currentItem = binding.vpOnboarding.currentItem
@@ -378,6 +393,68 @@ class ContentActivity : AppCompatActivity(),
         } catch (e: Exception) {
             Log.e(TAG, "Error en onBackPressed: ${e.message}", e)
             super.onBackPressed()
+        }
+    }
+
+    // ✅ MÉTODOS MANUALES MANTENIDOS COMO FALLBACK
+    private fun loadDashboardFragment() {
+        try {
+            val userName = viewModel.getCurrentUserName()
+            Log.d(TAG, "Cargando DashboardFragment manualmente con usuario: $userName")
+            val fragment = com.example.fittrack.View.ui.fragments.DashboardFragment.newInstance(userName)
+            supportFragmentManager.beginTransaction()
+                .replace(R.id.fragmentContainer, fragment)
+                .commitAllowingStateLoss()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al cargar DashboardFragment: ${e.message}", e)
+        }
+    }
+
+    private fun loadEstadisticasFragment() {
+        try {
+            Log.d(TAG, "Cargando EstadisticasFragment manualmente")
+            val fragment = com.example.fittrack.View.ui.fragments.EstadisticasFragment()
+            supportFragmentManager.beginTransaction()
+                .replace(R.id.fragmentContainer, fragment)
+                .commitAllowingStateLoss()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al cargar EstadisticasFragment: ${e.message}", e)
+        }
+    }
+
+    private fun loadMapFragment() {
+        try {
+            Log.d(TAG, "Cargando MapFragment manualmente")
+            val fragment = com.example.fittrack.View.ui.fragments.MapFragment()
+            supportFragmentManager.beginTransaction()
+                .replace(R.id.fragmentContainer, fragment)
+                .commitAllowingStateLoss()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al cargar MapFragment: ${e.message}", e)
+        }
+    }
+
+    private fun loadPerfilFragment() {
+        try {
+            Log.d(TAG, "Cargando PerfilFragment manualmente")
+            val fragment = com.example.fittrack.View.ui.fragments.PerfilFragment()
+            supportFragmentManager.beginTransaction()
+                .replace(R.id.fragmentContainer, fragment)
+                .commitAllowingStateLoss()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al cargar PerfilFragment: ${e.message}", e)
+        }
+    }
+
+    private fun loadRecorridoFragment() {
+        try {
+            Log.d(TAG, "Cargando RecorridoFragment manualmente")
+            val fragment = com.example.fittrack.View.ui.fragments.RecorridoFragment()
+            supportFragmentManager.beginTransaction()
+                .replace(R.id.fragmentContainer, fragment)
+                .commitAllowingStateLoss()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al cargar RecorridoFragment: ${e.message}", e)
         }
     }
 }
