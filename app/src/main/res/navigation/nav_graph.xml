@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+xmlns:app="http://schemas.android.com/apk/res-auto"
+xmlns:tools="http://schemas.android.com/tools"
+android:id="@+id/nav_graph"
+app:startDestination="@id/dashboardFragment">
+
+    <!-- Dashboard Fragment (pantalla principal) -->
+    <fragment
+        android:id="@+id/dashboardFragment"
+        android:name="com.example.fittrack.View.ui.fragments.DashboardFragment"
+        android:label="Dashboard"
+        tools:layout="@layout/fragment_dashboard">
+
+        <!-- Acción para navegar a distancia recorrida -->
+        <action
+            android:id="@+id/action_dashboard_to_distance"
+            app:destination="@id/distRecorridaFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+    </fragment>
+
+    <!-- Distancia Recorrida Fragment -->
+    <fragment
+        android:id="@+id/distRecorridaFragment"
+        android:name="com.example.fittrack.View.ui.fragments.DistRecorridaFragment"
+        android:label="Distancia Recorrida"
+        tools:layout="@layout/distancia_recorrida">
+
+        <!-- Argumentos que puede recibir (opcional) -->
+        <argument
+            android:name="userName"
+            app:argType="string"
+            app:nullable="true" />
+    </fragment>
+
+</navigation>
