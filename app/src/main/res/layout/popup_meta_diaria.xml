@@ -3,7 +3,9 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="20dp">
+    android:background="@color/background_light"
+    android:padding="24dp"
+    android:minWidth="300dp">
 
     <!-- Título del Popup -->
     <TextView
@@ -11,15 +13,16 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Configurar Meta Diaria"
-        android:textSize="18sp"
+        android:textSize="20sp"
         android:textStyle="bold"
         android:textColor="@color/text_primary"
-        android:layout_marginBottom="10dp"/>
+        android:gravity="center"
+        android:layout_marginBottom="16dp"/>
 
     <!-- Texto que indica "Meta en Kilómetros" -->
     <TextView
         android:id="@+id/tv_meta_kilometros_label"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Meta en Kilómetros"
         android:textSize="16sp"
@@ -33,37 +36,42 @@
         android:layout_height="wrap_content"
         android:hint="Introduce tu meta diaria"
         android:inputType="numberDecimal"
-        android:textSize="18sp"
-        android:layout_marginBottom="20dp"
-        android:padding="10dp"
+        android:textSize="16sp"
+        android:layout_marginBottom="24dp"
+        android:padding="12dp"
         android:textColor="@color/text_primary"
-        android:backgroundTint="@color/primary_green" />
+        android:backgroundTint="@color/primary_green"
+        android:minHeight="48dp" />
 
     <!-- Botones: Cancelar y Guardar -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="end">
+        android:gravity="end"
+        android:weightSum="2">
 
         <Button
             android:id="@+id/btn_cancel"
-            android:text="Cancelar"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Cancelar"
             android:textColor="@android:color/white"
             android:backgroundTint="@color/bt_main"
-            android:layout_marginEnd="10dp"
-            android:layout_gravity="center_vertical"/>
+            android:layout_marginEnd="8dp"
+            android:textAllCaps="false"/>
 
         <Button
             android:id="@+id/btn_save"
-            android:text="Guardar"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Guardar"
             android:textColor="@android:color/white"
             android:backgroundTint="@color/bt_main"
-            android:layout_gravity="center_vertical"/>
+            android:layout_marginStart="8dp"
+            android:textAllCaps="false"/>
     </LinearLayout>
 
 </LinearLayout>

@@ -30,6 +30,15 @@ app:startDestination="@id/dashboardFragment">
             app:popEnterAnim="@anim/slide_in_left"
             app:popExitAnim="@anim/slide_out_right" />
 
+        <!-- Acción para navegar a CARD - Meta Diaria -->
+        <action
+            android:id="@+id/action_dashboard_to_MetaDiaria"
+            app:destination="@id/MetaDiariaFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+
         <!-- Acción para navegar a estadísticas -->
         <action
             android:id="@+id/action_dashboard_to_estadisticas"
@@ -84,6 +93,18 @@ app:startDestination="@id/dashboardFragment">
 
         <action
             android:id="@+id/action_hidratacion_to_dashboard"
+            app:destination="@id/dashboardFragment" />
+    </fragment>
+
+    <!-- Meta Diaria Fragment -->
+    <fragment
+        android:id="@+id/MetaDiariaFragment"
+        android:name="com.example.fittrack.View.ui.fragments.MetaDiariaFragment"
+        android:label="Meta Diaria"
+        tools:layout="@layout/meta_diaria">
+
+        <action
+            android:id="@+id/action_MetaDiaria_to_dashboard"
             app:destination="@id/dashboardFragment" />
     </fragment>
 

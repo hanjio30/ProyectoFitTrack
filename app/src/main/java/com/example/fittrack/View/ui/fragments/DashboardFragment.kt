@@ -33,6 +33,7 @@ class DashboardFragment : Fragment() {
     // Cards clickeables
     private var cardDistance: CardView? = null
     private var cardHidratacion: CardView? = null
+    private var card_MetaDiaria: CardView? = null
 
     companion object {
         private const val TAG = "DashboardFragment"
@@ -127,10 +128,12 @@ class DashboardFragment : Fragment() {
             // Inicializar cards clickeables
             cardDistance = view.findViewById(R.id.cardDistance)
             cardHidratacion = view.findViewById(R.id.cardHidratacion)
+            card_MetaDiaria = view.findViewById(R.id.card_MetaDiaria)
 
             Log.d(TAG, "Vistas inicializadas")
             Log.d(TAG, "cardDistance: ${if (cardDistance != null) "✓" else "✗"}")
             Log.d(TAG, "cardHidratacion: ${if (cardHidratacion != null) "✓" else "✗"}")
+            Log.d(TAG, "card_MetaDiaria: ${if (card_MetaDiaria != null) "✓" else "✗"}")
 
         } catch (e: Exception) {
             Log.e(TAG, "Error al inicializar vistas: ${e.message}", e)
@@ -154,12 +157,13 @@ class DashboardFragment : Fragment() {
                 navigateToHidratacionFragment()
             }
 
-            // Puedes agregar más cards aquí
-            /*
-            cardCalories?.setOnClickListener {
-                navigateToCaloriesFragment()
+            // Click listener para el card de distancia
+            card_MetaDiaria?.setOnClickListener {
+                Log.d(TAG, "Click en card de Meta Diaria - Navegando...")
+                navigateToMetaDiariaFragment()
             }
-            */
+
+
 
         } catch (e: Exception) {
             Log.e(TAG, "Error al configurar click listeners: ${e.message}", e)
@@ -191,6 +195,18 @@ class DashboardFragment : Fragment() {
         } catch (e: Exception) {
             Log.e(TAG, "Error al navegar a hidratación: ${e.message}", e)
             showError("Error al abrir estadísticas de hidratación")
+        }
+    }
+
+    // NAVEGACIÓN - HIDRATACIÓN
+    private fun navigateToMetaDiariaFragment() {
+        try {
+            Log.d(TAG, "Click en card de Meta Diaria - Navegando...")
+            findNavController().navigate(R.id.action_dashboard_to_MetaDiaria)
+            Log.d(TAG, "Navegación iniciada a MetaDiariaFragment")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al navegar a meta diaria: ${e.message}", e)
+            showError("Error al abrir estadísticas de meta diaria")
         }
     }
 
@@ -355,5 +371,6 @@ class DashboardFragment : Fragment() {
         tvGoalValue = null
         cardDistance = null
         cardHidratacion = null
+        card_MetaDiaria = null
     }
 }

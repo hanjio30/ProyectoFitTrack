@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/fragment_meta_diaria"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background_light"
@@ -31,8 +30,8 @@
 
                 <ImageView
                     android:id="@+id/iv_goal_icon"
-                    android:layout_width="45dp"
-                    android:layout_height="47dp"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
                     android:src="@drawable/ic_goal" />
 
                 <TextView
@@ -48,8 +47,8 @@
 
                 <ImageView
                     android:id="@+id/iv_edit_icon"
-                    android:layout_width="30dp"
-                    android:layout_height="30dp"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
                     android:src="@drawable/ic_edit"
                     android:contentDescription="Icono de Editar" />
             </LinearLayout>
