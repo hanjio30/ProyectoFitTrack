@@ -43,7 +43,7 @@ android {
 }
 
 dependencies {
-
+    // Core Android dependencies
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
@@ -53,30 +53,33 @@ dependencies {
     implementation(libs.androidx.navigation.fragment)
     implementation(libs.androidx.navigation.ui)
     implementation(libs.androidx.fragment)
-    implementation(libs.androidx.lifecycle.viewmodel.ktx)
-    implementation(libs.androidx.lifecycle.extensions)
     implementation(libs.androidx.cardview)
+
+    // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 
+    // Image loading
     implementation(libs.circleimageview)
     implementation(libs.glide)
     kapt(libs.glideCompiler)
 
+    // Firebase BOM - DEBE IR PRIMERO
+    implementation(platform("com.google.firebase:firebase-bom:33.5.1"))
 
-
-
-    implementation(platform("com.google.firebase:firebase-bom:34.0.0"))
+    // Firebase dependencies (sin versiones específicas por el BOM)
     implementation("com.google.firebase:firebase-analytics")
-    // Firebase Auth
+    implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-auth")
-    // Firebase Realtime Database
-    implementation ("com.google.firebase:firebase-database")
+    implementation("com.google.firebase:firebase-database")
 
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2")
-    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.6.2")
+    // Lifecycle components - versiones consistentes
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-extensions:2.2.0")
 
-    implementation ("com.google.android.gms:play-services-maps:18.1.0")
-    implementation ("com.google.android.gms:play-services-location:21.0.1")
+    // Google Play Services
+    implementation("com.google.android.gms:play-services-maps:19.0.0")
+    implementation("com.google.android.gms:play-services-location:21.3.0")
 }
