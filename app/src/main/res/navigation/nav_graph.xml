@@ -12,10 +12,19 @@ app:startDestination="@id/dashboardFragment">
         android:label="Dashboard"
         tools:layout="@layout/fragment_dashboard">
 
-        <!-- Acción para navegar a distancia recorrida -->
+        <!-- Acción para navegar a CARD - distancia recorrida -->
         <action
             android:id="@+id/action_dashboard_to_distance"
             app:destination="@id/distRecorridaFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+
+        <!-- Acción para navegar a CARD - hidratacion -->
+        <action
+            android:id="@+id/action_dashboard_to_hidratacion"
+            app:destination="@id/HidratacionFragment"
             app:enterAnim="@anim/slide_in_right"
             app:exitAnim="@anim/slide_out_left"
             app:popEnterAnim="@anim/slide_in_left"
@@ -64,6 +73,18 @@ app:startDestination="@id/dashboardFragment">
             app:destination="@id/dashboardFragment"
             app:popUpTo="@id/dashboardFragment"
             app:popUpToInclusive="false" />
+    </fragment>
+
+    <!-- Hidratacion Fragment -->
+    <fragment
+        android:id="@+id/HidratacionFragment"
+        android:name="com.example.fittrack.View.ui.fragments.HidratacionFragment"
+        android:label="Hidratacion"
+        tools:layout="@layout/hidratacion">
+
+        <action
+            android:id="@+id/action_hidratacion_to_dashboard"
+            app:destination="@id/dashboardFragment" />
     </fragment>
 
     <!-- Estadísticas Fragment -->
