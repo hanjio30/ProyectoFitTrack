@@ -1,12 +1,15 @@
 package com.example.fittrack.ViewModel
 
-import android.app.Application
-import android.content.SharedPreferences
-import androidx.lifecycle.AndroidViewModel
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
 
-class DistanciaRecorridaViewModel(application: Application) : AndroidViewModel(application) {
+class DistanciaRecorridaViewModel : ViewModel() {
+
+    companion object {
+        private const val TAG = "DistanciaRecorridaViewModel"
+    }
 
     // LiveData para los datos de distancia
     private val _distanciaTotal = MutableLiveData<String>()
@@ -18,85 +21,96 @@ class DistanciaRecorridaViewModel(application: Application) : AndroidViewModel(a
     private val _distanciaMes = MutableLiveData<String>()
     val distanciaMes: LiveData<String> = _distanciaMes
 
-    // LiveData para el progreso semanal
-    private val _progresoSemanal = MutableLiveData<List<ProgressData>>()
-    val progresoSemanal: LiveData<List<ProgressData>> = _progresoSemanal
+    private val _errorMessage = MutableLiveData<String?>()
+    val errorMessage: LiveData<String?> = _errorMessage
 
-    // LiveData para récords personales
-    private val _recordsPersonales = MutableLiveData<RecordsData>()
-    val recordsPersonales: LiveData<RecordsData> = _recordsPersonales
+    private val _isLoading = MutableLiveData<Boolean>()
+    val isLoading: LiveData<Boolean> = _isLoading
 
-    // LiveData para controlar la visibilidad de elementos de UI
-    private val _shouldHideMainUI = MutableLiveData<Boolean>()
-    val shouldHideMainUI: LiveData<Boolean> = _shouldHideMainUI
+    // Datos de progreso semanal
+    private val _progresoSemanal = MutableLiveData<List<ProgresoSemana>>()
+    val progresoSemanal: LiveData<List<ProgresoSemana>> = _progresoSemanal
 
-    data class ProgressData(
-        val semana: String,
-        val distancia: String,
-        val progreso: Int
-    )
+    // Récords personales
+    private val _records = MutableLiveData<RecordsPersonales>()
+    val records: LiveData<RecordsPersonales> = _records
 
-    data class RecordsData(
-        val mejorDia: String,
-        val fechaMejorDia: String,
-        val distanciaMejorDia: String,
-        val mejorSemana: String,
-        val fechaMejorSemana: String,
-        val distanciaMejorSemana: String,
-        val mejorMes: String,
-        val fechaMejorMes: String,
-        val distanciaMejorMes: String
-    )
+    fun loadDistanceData(userName: String?) {
+        try {
+            Log.d(TAG, "Cargando datos de distancia para: $userName")
 
-    fun loadDistanceData(sharedPreferences: SharedPreferences) {
-        // Aquí cargarías los datos reales desde SharedPreferences, Room, API, etc.
-        // Por ahora uso datos de ejemplo
+            _isLoading.value = true
 
-        _distanciaTotal.value = "150.5 km"
-        _distanciaSemana.value = "28.5 km"
-        _distanciaMes.value = "112.8 km"
+            // Simular carga de datos
+            loadMockData()
 
-        // Cargar progreso semanal
-        val progressList = listOf(
-            ProgressData("Sem 2", "18.5 km", 45),
-            ProgressData("Sem 3", "22.3 km", 55),
-            ProgressData("Sem 4", "24.2 km", 60),
-            ProgressData("Sem 5", "28.5 km", 70),
-            ProgressData("Sem 6", "31.2 km", 77),
-            ProgressData("Sem 7", "26.8 km", 65),
-            ProgressData("Sem 8", "28.5 km", 70)
-        )
-        _progresoSemanal.value = progressList
+            _isLoading.value = false
 
-        // Cargar récords personales
-        val records = RecordsData(
-            mejorDia = "Mejor día",
-            fechaMejorDia = "12 Jun",
-            distanciaMejorDia = "15.2 km",
-            mejorSemana = "Mejor semana",
-            fechaMejorSemana = "5-11 Jun",
-            distanciaMejorSemana = "45.8 km",
-            mejorMes = "Mejor mes",
-            fechaMejorMes = "Mayo 2025",
-            distanciaMejorMes = "156.3 km"
-        )
-        _recordsPersonales.value = records
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al cargar datos: ${e.message}", e)
+            _errorMessage.value = "Error al cargar estadísticas de distancia"
+            _isLoading.value = false
+        }
     }
 
-    fun setUIVisibility(shouldHide: Boolean) {
-        _shouldHideMainUI.value = shouldHide
+    private fun loadMockData() {
+        try {
+            // Datos principales
+            _distanciaTotal.value = "150.5 km"
+            _distanciaSemana.value = "28.5 km"
+            _distanciaMes.value = "112.8 km"
+
+            // Progreso semanal
+            val progresoSemanas = listOf(
+                ProgresoSemana("Sem 2", 18.5f, 45),
+                ProgresoSemana("Sem 3", 22.3f, 55),
+                ProgresoSemana("Sem 4", 24.2f, 60),
+                ProgresoSemana("Sem 5", 28.5f, 70),
+                ProgresoSemana("Sem 6", 31.2f, 77),
+                ProgresoSemana("Sem 7", 26.8f, 65),
+                ProgresoSemana("Sem 8", 28.5f, 70)
+            )
+            _progresoSemanal.value = progresoSemanas
+
+            // Récords personales
+            val records = RecordsPersonales(
+                mejorDia = Record("12 Jun", "15.2 km"),
+                mejorSemana = Record("5-11 Jun", "45.8 km"),
+                mejorMes = Record("Mayo 2025", "156.3 km")
+            )
+            _records.value = records
+
+            Log.d(TAG, "Datos mock cargados exitosamente")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al cargar datos mock: ${e.message}", e)
+            _errorMessage.value = "Error al procesar los datos"
+        }
     }
 
-    // Método para actualizar datos (si vienen de una API o base de datos)
-    fun updateDistanceData(total: String, semana: String, mes: String) {
-        _distanciaTotal.value = total
-        _distanciaSemana.value = semana
-        _distanciaMes.value = mes
-    }
-
-    // Método para obtener datos desde Repository (si implementas Repository pattern)
     fun refreshData() {
-        // Aquí llamarías a tu Repository para obtener datos actualizados
-        // repository.getDistanceData()
+        loadDistanceData(null)
     }
+
+    fun clearError() {
+        _errorMessage.value = null
+    }
+
+    // Data classes para estructurar los datos
+    data class ProgresoSemana(
+        val nombre: String,
+        val distancia: Float,
+        val progreso: Int // Porcentaje 0-100
+    )
+
+    data class Record(
+        val fecha: String,
+        val valor: String
+    )
+
+    data class RecordsPersonales(
+        val mejorDia: Record,
+        val mejorSemana: Record,
+        val mejorMes: Record
+    )
 }

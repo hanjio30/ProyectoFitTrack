@@ -119,4 +119,11 @@ app:startDestination="@id/dashboardFragment">
             app:destination="@id/distRecorridaFragment" />
     </fragment>
 
+
+
+    <!-- Acción Global para ir al Dashboard desde cualquier fragment -->
+    <action
+        android:id="@+id/action_global_dashboardFragment"
+        app:destination="@id/dashboardFragment" />
+
 </navigation>

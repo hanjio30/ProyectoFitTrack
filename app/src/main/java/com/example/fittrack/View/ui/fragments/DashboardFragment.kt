@@ -160,8 +160,11 @@ class DashboardFragment : Fragment() {
     // ✅ NAVEGACIÓN CON NAVIGATION COMPONENT
     private fun navigateToDistanceFragment() {
         try {
-            // Navegar usando Navigation Component
+            Log.d(TAG, "Click en card de distancia - Navegando...")
+
+            // Usar Navigation Component para navegar al fragment de distancia
             findNavController().navigate(R.id.action_dashboard_to_distance)
+
             Log.d(TAG, "Navegación iniciada a DistRecorridaFragment")
 
         } catch (e: Exception) {
