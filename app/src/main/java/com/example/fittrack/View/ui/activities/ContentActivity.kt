@@ -14,6 +14,9 @@ import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
 import androidx.viewpager2.widget.ViewPager2
+import com.example.fittrack.utils.ImageUtils
+import android.widget.ImageView
+import android.graphics.Bitmap
 import com.example.fittrack.R
 import com.example.fittrack.View.Adapters.OnboardingAdapter
 import com.example.fittrack.View.ui.fragments.OnboardingFragment
@@ -72,6 +75,19 @@ class ContentActivity : AppCompatActivity(),
         }
     }
 
+    // ✅ MÉTODO onResume AGREGADO para refrescar imagen al volver de PerfilFragment
+    override fun onResume() {
+        super.onResume()
+        try {
+            Log.d(TAG, "onResume - Refrescando imagen de perfil")
+            if (viewModel.showMainContent.value == true) {
+                viewModel.refreshProfileImage()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error en onResume: ${e.message}", e)
+        }
+    }
+
     private fun setupNavigation() {
         try {
             Log.d(TAG, "Configurando Navigation Component")
@@ -111,6 +127,7 @@ class ContentActivity : AppCompatActivity(),
         }
     }
 
+    // ✅ OBSERVERS MEJORADOS
     private fun setupObservers() {
         try {
             // Observer para mostrar/ocultar onboarding
@@ -127,7 +144,7 @@ class ContentActivity : AppCompatActivity(),
                 if (showMainContent) {
                     binding.frameOnboarding.visibility = View.GONE
                     binding.frameMainContent.visibility = View.VISIBLE
-                    setupNavigation() // ✅ Configurar Navigation cuando se muestra el contenido principal
+                    setupNavigation() // Configurar Navigation cuando se muestra el contenido principal
                 }
             }
 
@@ -141,7 +158,22 @@ class ContentActivity : AppCompatActivity(),
                 tvUserEmail?.text = userEmail
             }
 
-            // ✅ OBSERVER ACTUALIZADO: Usar Navigation Component PRIMERO
+            // ✅ OBSERVER MEJORADO: Para la imagen de perfil del usuario
+            viewModel.userProfileImage.observe(this) { profileBitmap ->
+                Log.d(TAG, "Observer userProfileImage triggered - Bitmap: ${profileBitmap != null}")
+                updateUserAvatar(profileBitmap)
+            }
+
+            // ✅ NUEVO OBSERVER: Para notificar cuando la imagen se actualiza
+            viewModel.profileImageUpdated.observe(this) { updated ->
+                if (updated) {
+                    Log.d(TAG, "Profile image updated - Refreshing UI")
+                    updateUserAvatar(viewModel.userProfileImage.value)
+                    viewModel.resetProfileImageUpdated()
+                }
+            }
+
+            // Observer para navegación de fragmentos
             viewModel.currentFragment.observe(this) { fragmentType ->
                 navigateToFragment(fragmentType)
             }
@@ -156,6 +188,76 @@ class ContentActivity : AppCompatActivity(),
 
         } catch (e: Exception) {
             Log.e(TAG, "Error en setupObservers: ${e.message}", e)
+        }
+    }
+
+    // ✅ MÉTODO MEJORADO: Actualizar avatar del usuario
+    private fun updateUserAvatar(profileBitmap: Bitmap?) {
+        try {
+            Log.d(TAG, "=== updateUserAvatar ===")
+            Log.d(TAG, "Bitmap recibido: ${profileBitmap != null}")
+            if (profileBitmap != null) {
+                Log.d(TAG, "Bitmap dimensiones: ${profileBitmap.width}x${profileBitmap.height}")
+            }
+
+            // ✅ MEJORADO: Actualizar todos los ImageView con mejor manejo de errores
+            val imageViews = listOf(
+                Triple(binding.ivUserAvatar, "Onboarding Avatar", "ivUserAvatar"),
+                Triple(binding.ivUserAvatarMain, "Main Avatar", "ivUserAvatarMain")
+            )
+
+            imageViews.forEach { (imageView, description, viewId) ->
+                imageView?.let { iv ->
+                    try {
+                        if (profileBitmap != null) {
+                            Log.d(TAG, "Aplicando imagen personalizada en $description")
+                            ImageUtils.makeImageCircular(iv, profileBitmap)
+                        } else {
+                            Log.d(TAG, "Aplicando imagen por defecto en $description")
+                            ImageUtils.makeImageCircular(iv, R.drawable.ic_user_avatar)
+                        }
+                        Log.d(TAG, "$description actualizado exitosamente")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error al actualizar $description: ${e.message}", e)
+                        // Fallback: imagen por defecto sin circular
+                        try {
+                            iv.setImageResource(R.drawable.ic_user_avatar)
+                        } catch (ex: Exception) {
+                            Log.e(TAG, "Error en fallback para $description: ${ex.message}", ex)
+                        }
+                    }
+                } ?: Log.w(TAG, "$description ($viewId) es null")
+            }
+
+            // ✅ MEJORADO: Actualizar Navigation Header con mejor manejo
+            try {
+                val headerView = binding.navigationView?.getHeaderView(0)
+                val navHeaderAvatar = headerView?.findViewById<ImageView>(R.id.ivNavHeaderAvatar)
+                navHeaderAvatar?.let { imageView ->
+                    if (profileBitmap != null) {
+                        Log.d(TAG, "Aplicando imagen personalizada en Navigation Header")
+                        ImageUtils.makeImageCircular(imageView, profileBitmap)
+                    } else {
+                        Log.d(TAG, "Aplicando imagen por defecto en Navigation Header")
+                        ImageUtils.makeImageCircular(imageView, R.drawable.ic_user_avatar)
+                    }
+                    Log.d(TAG, "Navigation Header avatar actualizado exitosamente")
+                } ?: Log.w(TAG, "Navigation Header avatar es null")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error al actualizar Navigation Header: ${e.message}", e)
+            }
+
+            Log.d(TAG, "=== updateUserAvatar COMPLETADO ===")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error crítico en updateUserAvatar: ${e.message}", e)
+            // Último recurso: intentar mostrar imagen por defecto en los ImageView principales
+            try {
+                binding.ivUserAvatar?.setImageResource(R.drawable.ic_user_avatar)
+                binding.ivUserAvatarMain?.setImageResource(R.drawable.ic_user_avatar)
+            } catch (ex: Exception) {
+                Log.e(TAG, "Error en último recurso: ${ex.message}", ex)
+            }
         }
     }
 
