@@ -32,6 +32,7 @@ class DashboardFragment : Fragment() {
 
     // Cards clickeables
     private var cardDistance: CardView? = null
+    private var cardHidratacion: CardView? = null
 
     companion object {
         private const val TAG = "DashboardFragment"
@@ -125,9 +126,11 @@ class DashboardFragment : Fragment() {
 
             // Inicializar cards clickeables
             cardDistance = view.findViewById(R.id.cardDistance)
+            cardHidratacion = view.findViewById(R.id.cardHidratacion)
 
             Log.d(TAG, "Vistas inicializadas")
             Log.d(TAG, "cardDistance: ${if (cardDistance != null) "✓" else "✗"}")
+            Log.d(TAG, "cardHidratacion: ${if (cardHidratacion != null) "✓" else "✗"}")
 
         } catch (e: Exception) {
             Log.e(TAG, "Error al inicializar vistas: ${e.message}", e)
@@ -145,6 +148,12 @@ class DashboardFragment : Fragment() {
                 navigateToDistanceFragment()
             }
 
+            // Click listener para el card de distancia
+            cardHidratacion?.setOnClickListener {
+                Log.d(TAG, "Click en card de hidratacion - Navegando...")
+                navigateToHidratacionFragment()
+            }
+
             // Puedes agregar más cards aquí
             /*
             cardCalories?.setOnClickListener {
@@ -157,7 +166,7 @@ class DashboardFragment : Fragment() {
         }
     }
 
-    // ✅ NAVEGACIÓN CON NAVIGATION COMPONENT
+    // ✅ NAVEGACIÓN - DISTANCIA RECORRIDA  CON NAVIGATION COMPONENT
     private fun navigateToDistanceFragment() {
         try {
             Log.d(TAG, "Click en card de distancia - Navegando...")
@@ -170,6 +179,18 @@ class DashboardFragment : Fragment() {
         } catch (e: Exception) {
             Log.e(TAG, "Error al navegar: ${e.message}", e)
             showError("Error al abrir estadísticas de distancia")
+        }
+    }
+
+    // NAVEGACIÓN - HIDRATACIÓN
+    private fun navigateToHidratacionFragment() {
+        try {
+            Log.d(TAG, "Click en card de hidratación - Navegando...")
+            findNavController().navigate(R.id.action_dashboard_to_hidratacion)
+            Log.d(TAG, "Navegación iniciada a HidratacionFragment")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al navegar a hidratación: ${e.message}", e)
+            showError("Error al abrir estadísticas de hidratación")
         }
     }
 
@@ -333,5 +354,6 @@ class DashboardFragment : Fragment() {
         tvDistanceValue = null
         tvGoalValue = null
         cardDistance = null
+        cardHidratacion = null
     }
 }

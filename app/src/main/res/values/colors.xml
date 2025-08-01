@@ -11,6 +11,9 @@
     <color name="teal_200">#FF03DAC5</color>
     <color name="teal_700">#FF018786</color>
 
+    <color name="gray_light">#CCCCCC</color>
+
+
     <!-- FitTrack Colors -->
     <color name="primary_dark">#1f2d36</color>
     <color name="primary_green">#0C8789</color>
@@ -18,5 +21,7 @@
     <color name="background_light">#F8F9FA</color>
     <color name="text_primary">#1f2d36</color>
     <color name="text_secondary">#7F8C8D</color>
+
+
 
 </resources>
