@@ -39,6 +39,15 @@ app:startDestination="@id/dashboardFragment">
             app:popEnterAnim="@anim/slide_in_left"
             app:popExitAnim="@anim/slide_out_right" />
 
+        <!-- Acción para navegar a CARD - Racha Diaria -->
+        <action
+            android:id="@+id/action_dashboard_to_RachaDiaria"
+            app:destination="@id/RachaDiariaFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+
         <!-- Acción para navegar a estadísticas -->
         <action
             android:id="@+id/action_dashboard_to_estadisticas"
@@ -105,6 +114,19 @@ app:startDestination="@id/dashboardFragment">
 
         <action
             android:id="@+id/action_MetaDiaria_to_dashboard"
+            app:destination="@id/dashboardFragment" />
+    </fragment>
+
+
+    <!-- Racha Diaria Fragment -->
+    <fragment
+        android:id="@+id/RachaDiariaFragment"
+        android:name="com.example.fittrack.View.ui.fragments.RachaDiariaFragment"
+        android:label="Racha Diaria"
+        tools:layout="@layout/racha_diaria">
+
+        <action
+            android:id="@+id/action_RachaDiaria_to_dashboard"
             app:destination="@id/dashboardFragment" />
     </fragment>
 

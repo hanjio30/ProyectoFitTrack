@@ -270,7 +270,7 @@
 
             <!-- Card de Racha -->
             <androidx.cardview.widget.CardView
-                android:id="@+id/cardStreak"
+                android:id="@+id/cardRachaDiaria"
                 android:layout_width="0dp"
                 android:layout_height="100dp"
                 android:layout_weight="1"
