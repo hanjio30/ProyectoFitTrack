@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "211812420438",
+    "firebase_url": "https://proyecto-fittrack-f825d-default-rtdb.firebaseio.com",
+    "project_id": "proyecto-fittrack-f825d",
+    "storage_bucket": "proyecto-fittrack-f825d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:211812420438:android:5e376e9157e149210ca4f7",
+        "android_client_info": {
+          "package_name": "com.example.fittrack"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCWUbKj554pyHP0YrIPh6z2iFtDtP47MWQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
