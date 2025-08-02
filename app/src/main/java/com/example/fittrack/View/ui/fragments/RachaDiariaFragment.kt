@@ -1,5 +1,6 @@
 package com.example.fittrack.View.ui.fragments
 
+import android.animation.ObjectAnimator
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -9,6 +10,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import androidx.cardview.widget.CardView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
@@ -40,8 +42,19 @@ class RachaDiariaFragment : Fragment() {
     private var ivCalendar: ImageView? = null
     private var ivGift: ImageView? = null
 
+    // ✅ NUEVOS CARDVIEWS DESPLEGABLES
+    private var cardCalendarMenu: CardView? = null
+    private var cardGiftMenu: CardView? = null
+    private var ivCloseCalendar: ImageView? = null
+    private var ivCloseGift: ImageView? = null
+
+    // Estado de visibilidad de los cards
+    private var isCalendarMenuVisible = false
+    private var isGiftMenuVisible = false
+
     companion object {
         private const val TAG = "RachaDiariaFragment"
+        private const val ANIMATION_DURATION = 300L
     }
 
     override fun onCreateView(
@@ -94,7 +107,7 @@ class RachaDiariaFragment : Fragment() {
             // Views principales de racha
             tvStreakNumber = view.findViewById(R.id.streak_number)
             tvStreakLabel = view.findViewById(R.id.streak_label)
-            tvStreakLevel = view.findViewById(R.id.streak_level) // El TextView dentro del CardView principal
+            tvStreakLevel = view.findViewById(R.id.streak_level)
             tvBestStreakValue = view.findViewById(R.id.tv_best_streak_value)
             tvTotalPointsValue = view.findViewById(R.id.tv_total_points_value)
 
@@ -114,7 +127,15 @@ class RachaDiariaFragment : Fragment() {
             ivCalendar = view.findViewById(R.id.iv_calendar)
             ivGift = view.findViewById(R.id.iv_gift)
 
+            // ✅ NUEVOS CARDVIEWS DESPLEGABLES
+            cardCalendarMenu = view.findViewById(R.id.card_calendar_menu)
+            cardGiftMenu = view.findViewById(R.id.card_gift_menu)
+            ivCloseCalendar = view.findViewById(R.id.iv_close_calendar)
+            ivCloseGift = view.findViewById(R.id.iv_close_gift)
+
             Log.d(TAG, "Vistas inicializadas correctamente")
+            Log.d(TAG, "CardCalendarMenu encontrado: ${cardCalendarMenu != null}")
+            Log.d(TAG, "CardGiftMenu encontrado: ${cardGiftMenu != null}")
         } catch (e: Exception) {
             Log.e(TAG, "Error al inicializar vistas: ${e.message}", e)
         }
@@ -146,15 +167,27 @@ class RachaDiariaFragment : Fragment() {
 
     private fun setupClickListeners() {
         try {
-            // Click listeners para los íconos de la parte superior
+            // ✅ CLICK EN ÍCONO DE CALENDARIO
             ivCalendar?.setOnClickListener {
                 Log.d(TAG, "Click en calendario")
-                // Aquí puedes navegar a una vista de calendario o estadísticas
+                toggleCalendarMenu()
             }
 
+            // ✅ CLICK EN ÍCONO DE REGALO
             ivGift?.setOnClickListener {
                 Log.d(TAG, "Click en regalo")
-                // Aquí puedes navegar a una vista de recompensas o logros
+                toggleGiftMenu()
+            }
+
+            // ✅ BOTONES DE CERRAR DENTRO DE LOS CARDS
+            ivCloseCalendar?.setOnClickListener {
+                Log.d(TAG, "Click en cerrar calendario")
+                hideCalendarMenu()
+            }
+
+            ivCloseGift?.setOnClickListener {
+                Log.d(TAG, "Click en cerrar regalo")
+                hideGiftMenu()
             }
 
             // Click en la card principal para incrementar racha (solo para testing)
@@ -166,6 +199,128 @@ class RachaDiariaFragment : Fragment() {
 
         } catch (e: Exception) {
             Log.e(TAG, "Error al configurar click listeners: ${e.message}", e)
+        }
+    }
+
+    // ✅ FUNCIÓN PARA ALTERNAR LA VISIBILIDAD DEL MENÚ DEL CALENDARIO
+    private fun toggleCalendarMenu() {
+        try {
+            if (isCalendarMenuVisible) {
+                hideCalendarMenu()
+            } else {
+                showCalendarMenu()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al alternar menú de calendario: ${e.message}", e)
+        }
+    }
+
+    // ✅ FUNCIÓN PARA ALTERNAR LA VISIBILIDAD DEL MENÚ DE REGALOS
+    private fun toggleGiftMenu() {
+        try {
+            if (isGiftMenuVisible) {
+                hideGiftMenu()
+            } else {
+                showGiftMenu()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al alternar menú de regalos: ${e.message}", e)
+        }
+    }
+
+    // ✅ MOSTRAR MENÚ DEL CALENDARIO CON ANIMACIÓN
+    private fun showCalendarMenu() {
+        try {
+            cardCalendarMenu?.let { card ->
+                Log.d(TAG, "Mostrando menú del calendario")
+
+                // Hacer visible el card
+                card.visibility = View.VISIBLE
+                card.alpha = 0f
+
+                // Animación de fade in
+                ObjectAnimator.ofFloat(card, "alpha", 0f, 1f).apply {
+                    duration = ANIMATION_DURATION
+                    start()
+                }
+
+                isCalendarMenuVisible = true
+                Log.d(TAG, "Menú del calendario mostrado")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al mostrar menú del calendario: ${e.message}", e)
+        }
+    }
+
+    // ✅ OCULTAR MENÚ DEL CALENDARIO CON ANIMACIÓN
+    private fun hideCalendarMenu() {
+        try {
+            cardCalendarMenu?.let { card ->
+                Log.d(TAG, "Ocultando menú del calendario")
+
+                // Animación de fade out
+                ObjectAnimator.ofFloat(card, "alpha", 1f, 0f).apply {
+                    duration = ANIMATION_DURATION
+                    start()
+                }.addListener(object : android.animation.AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: android.animation.Animator) {
+                        card.visibility = View.GONE
+                    }
+                })
+
+                isCalendarMenuVisible = false
+                Log.d(TAG, "Menú del calendario ocultado")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al ocultar menú del calendario: ${e.message}", e)
+        }
+    }
+
+    // ✅ MOSTRAR MENÚ DE REGALOS CON ANIMACIÓN
+    private fun showGiftMenu() {
+        try {
+            cardGiftMenu?.let { card ->
+                Log.d(TAG, "Mostrando menú de regalos")
+
+                // Hacer visible el card
+                card.visibility = View.VISIBLE
+                card.alpha = 0f
+
+                // Animación de fade in
+                ObjectAnimator.ofFloat(card, "alpha", 0f, 1f).apply {
+                    duration = ANIMATION_DURATION
+                    start()
+                }
+
+                isGiftMenuVisible = true
+                Log.d(TAG, "Menú de regalos mostrado")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al mostrar menú de regalos: ${e.message}", e)
+        }
+    }
+
+    // ✅ OCULTAR MENÚ DE REGALOS CON ANIMACIÓN
+    private fun hideGiftMenu() {
+        try {
+            cardGiftMenu?.let { card ->
+                Log.d(TAG, "Ocultando menú de regalos")
+
+                // Animación de fade out
+                ObjectAnimator.ofFloat(card, "alpha", 1f, 0f).apply {
+                    duration = ANIMATION_DURATION
+                    start()
+                }.addListener(object : android.animation.AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: android.animation.Animator) {
+                        card.visibility = View.GONE
+                    }
+                })
+
+                isGiftMenuVisible = false
+                Log.d(TAG, "Menú de regalos ocultado")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al ocultar menú de regalos: ${e.message}", e)
         }
     }
 
@@ -298,6 +453,12 @@ class RachaDiariaFragment : Fragment() {
             tvCardTitle = null
             ivCalendar = null
             ivGift = null
+
+            // ✅ LIMPIAR REFERENCIAS DE LOS NUEVOS CARDVIEWS
+            cardCalendarMenu = null
+            cardGiftMenu = null
+            ivCloseCalendar = null
+            ivCloseGift = null
 
         } catch (e: Exception) {
             Log.e(TAG, "Error en onDestroyView: ${e.message}", e)

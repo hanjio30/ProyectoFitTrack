@@ -4,6 +4,8 @@
     <color name="white">#FFFFFFFF</color>
     <color name="bt_main">#0C8789</color>
     <color name="bt_secon">#F27926</color>
+    <color name="calendar_racha">#22BC03</color>
+    <color name="calendar_no_racha">#C10303</color>
 
     <color name="purple_200">#FFBB86FC</color>
     <color name="purple_500">#FF6200EE</color>
