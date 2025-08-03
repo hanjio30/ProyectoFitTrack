@@ -5,6 +5,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.fittrack.network.RecorridoRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -21,7 +22,8 @@ class DashboardViewModel : ViewModel() {
     // Firebase
     private val firebaseAuth: FirebaseAuth = FirebaseAuth.getInstance()
     private val databaseReference: DatabaseReference = FirebaseDatabase.getInstance().getReference()
-    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance() // ✅ AGREGAR FIRESTORE
+    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
+    private val recorridoRepository = RecorridoRepository() // ✅ AGREGAR REPOSITORY
 
     // LiveData para la UI
     private val _userName = MutableLiveData<String>()
@@ -79,6 +81,14 @@ class DashboardViewModel : ViewModel() {
         val fullName: String = "",
         val email: String = "",
         val uid: String = ""
+    )
+
+    // ✅ NUEVA DATA CLASS PARA ESTADÍSTICAS DE RECORRIDOS
+    data class RecorridoStats(
+        val totalCalorias: Int = 0,
+        val totalMinutos: Int = 0,
+        val totalPasos: Int = 0,
+        val totalDistanciaKm: Double = 0.0
     )
 
     fun initializeDashboard(userName: String? = null) {
@@ -191,34 +201,45 @@ class DashboardViewModel : ViewModel() {
                 if (currentUser != null) {
                     Log.d(TAG, "Cargando estadísticas del usuario")
 
-                    // ✅ PRIMERO CARGAR HIDRATACIÓN DESDE FIRESTORE
-                    loadHydrationFromFirestore(currentUser.uid) { hydrationLiters ->
+                    // ✅ CARGAR ESTADÍSTICAS DE RECORRIDOS PRIMERO
+                    loadRecorridosStats(currentUser.uid) { recorridoStats ->
 
-                        // Luego cargar el resto de estadísticas desde Realtime Database
-                        databaseReference.child("userStats").child(currentUser.uid)
-                            .addListenerForSingleValueEvent(object : ValueEventListener {
-                                override fun onDataChange(snapshot: DataSnapshot) {
-                                    try {
-                                        if (snapshot.exists()) {
-                                            val userStats = snapshot.getValue(UserStats::class.java) ?: UserStats()
-                                            // ✅ USAR LA HIDRATACIÓN REAL DE FIRESTORE
-                                            val updatedStats = userStats.copy(hydrationLiters = hydrationLiters)
-                                            setupStatsData(updatedStats)
-                                        } else {
-                                            Log.d(TAG, "No hay estadísticas, usando datos de ejemplo")
-                                            setupDefaultStats(hydrationLiters)
+                        // Luego cargar hidratación desde Firestore
+                        loadHydrationFromFirestore(currentUser.uid) { hydrationLiters ->
+
+                            // Finalmente cargar el resto de estadísticas desde Realtime Database
+                            databaseReference.child("userStats").child(currentUser.uid)
+                                .addListenerForSingleValueEvent(object : ValueEventListener {
+                                    override fun onDataChange(snapshot: DataSnapshot) {
+                                        try {
+                                            if (snapshot.exists()) {
+                                                val userStats = snapshot.getValue(UserStats::class.java) ?: UserStats()
+
+                                                // ✅ COMBINAR DATOS DE RECORRIDOS CON STATS EXISTENTES
+                                                val updatedStats = userStats.copy(
+                                                    hydrationLiters = hydrationLiters,
+                                                    calories = recorridoStats.totalCalorias,
+                                                    activityMinutes = recorridoStats.totalMinutos,
+                                                    steps = recorridoStats.totalPasos,
+                                                    distanceKm = recorridoStats.totalDistanciaKm
+                                                )
+                                                setupStatsData(updatedStats)
+                                            } else {
+                                                Log.d(TAG, "No hay estadísticas, usando datos de recorridos")
+                                                setupStatsFromRecorridos(recorridoStats, hydrationLiters)
+                                            }
+                                        } catch (e: Exception) {
+                                            Log.e(TAG, "Error al procesar estadísticas: ${e.message}", e)
+                                            setupStatsFromRecorridos(recorridoStats, hydrationLiters)
                                         }
-                                    } catch (e: Exception) {
-                                        Log.e(TAG, "Error al procesar estadísticas: ${e.message}", e)
-                                        setupDefaultStats(hydrationLiters)
                                     }
-                                }
 
-                                override fun onCancelled(error: DatabaseError) {
-                                    Log.e(TAG, "Error al cargar estadísticas: ${error.message}")
-                                    setupDefaultStats(hydrationLiters)
-                                }
-                            })
+                                    override fun onCancelled(error: DatabaseError) {
+                                        Log.e(TAG, "Error al cargar estadísticas: ${error.message}")
+                                        setupStatsFromRecorridos(recorridoStats, hydrationLiters)
+                                    }
+                                })
+                        }
                     }
                 } else {
                     setupDefaultStats()
@@ -230,7 +251,64 @@ class DashboardViewModel : ViewModel() {
         }
     }
 
-    // ✅ NUEVA FUNCIÓN PARA CARGAR HIDRATACIÓN DESDE FIRESTORE
+    // ✅ FUNCIÓN MEJORADA PARA CARGAR ESTADÍSTICAS DE RECORRIDOS DE HOY
+    private fun loadRecorridosStats(uid: String, callback: (RecorridoStats) -> Unit) {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "=== CARGANDO ESTADÍSTICAS DE RECORRIDOS DE HOY ===")
+
+                // Usar la nueva función para obtener estadísticas diarias
+                val result = recorridoRepository.obtenerEstadisticasDiarias(uid)
+
+                result.onSuccess { estadisticas ->
+                    Log.d(TAG, "Estadísticas diarias obtenidas: $estadisticas")
+
+                    val stats = RecorridoStats(
+                        totalCalorias = estadisticas.totalCalorias,
+                        totalMinutos = estadisticas.totalMinutos,
+                        totalPasos = estadisticas.totalPasos,
+                        totalDistanciaKm = estadisticas.totalDistanciaKm
+                    )
+
+                    Log.d(TAG, "✓ Estadísticas convertidas: $stats")
+                    callback(stats)
+                }
+
+                result.onFailure { exception ->
+                    Log.e(TAG, "Error al obtener estadísticas diarias: ${exception.message}", exception)
+                    callback(RecorridoStats()) // Stats vacías
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error en loadRecorridosStats: ${e.message}", e)
+                callback(RecorridoStats()) // Stats vacías
+            }
+        }
+    }
+
+    // ✅ NUEVA FUNCIÓN PARA CONFIGURAR STATS DESDE RECORRIDOS
+    private fun setupStatsFromRecorridos(recorridoStats: RecorridoStats, hydrationLiters: Double) {
+        try {
+            _caloriesValue.value = "${recorridoStats.totalCalorias} kcal"
+            _activityValue.value = "${recorridoStats.totalMinutos} min"
+            _stepsValue.value = recorridoStats.totalPasos.toString()
+
+            // Formatear hidratación a 1 decimal
+            val formattedHydration = String.format("%.1f", hydrationLiters)
+            _hydrationValue.value = "$formattedHydration lit."
+
+            _streakValue.value = "20 días" // Mantener valor por defecto por ahora
+            _distanceValue.value = String.format("%.1f km", recorridoStats.totalDistanciaKm)
+            _goalValue.value = "75%" // Mantener valor por defecto por ahora
+
+            _isLoading.value = false
+            Log.d(TAG, "Estadísticas de recorridos configuradas")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error en setupStatsFromRecorridos: ${e.message}", e)
+            setupDefaultStats()
+        }
+    }
+
     private fun loadHydrationFromFirestore(uid: String, callback: (Double) -> Unit) {
         try {
             val fecha = SimpleDateFormat("yyyy_MM_dd", Locale.getDefault()).format(Date())
@@ -244,8 +322,6 @@ class DashboardViewModel : ViewModel() {
                     try {
                         if (document.exists()) {
                             val litrosRaw = document.getDouble("litros") ?: 0.0
-
-                            // ✅ REDONDEAR A 1 DECIMAL PARA EVITAR NÚMEROS GIGANTES
                             val litrosFormatted = String.format("%.1f", litrosRaw).toDouble()
 
                             Log.d(TAG, "✓ Hidratación encontrada - Raw: $litrosRaw, Formatted: $litrosFormatted")
@@ -275,12 +351,11 @@ class DashboardViewModel : ViewModel() {
             _activityValue.value = "${userStats.activityMinutes} min"
             _stepsValue.value = userStats.steps.toString()
 
-            // ✅ FORMATEAR HIDRATACIÓN A 1 DECIMAL
             val formattedHydration = String.format("%.1f", userStats.hydrationLiters)
             _hydrationValue.value = "$formattedHydration lit."
 
             _streakValue.value = "${userStats.streak} días"
-            _distanceValue.value = "${userStats.distanceKm} km"
+            _distanceValue.value = String.format("%.1f km", userStats.distanceKm)
             _goalValue.value = "${userStats.goalProgress}%"
 
             _isLoading.value = false
@@ -291,24 +366,21 @@ class DashboardViewModel : ViewModel() {
         }
     }
 
-
-    // ✅ ACTUALIZAR FUNCIÓN PARA ACEPTAR HIDRATACIÓN REAL
     private fun setupDefaultStats(realHydration: Double = 0.0) {
         try {
-            _caloriesValue.value = "25 kcal"
-            _activityValue.value = "45 min"
-            _stepsValue.value = "58"
+            _caloriesValue.value = "0 kcal"
+            _activityValue.value = "0 min"
+            _stepsValue.value = "0"
 
-            // ✅ FORMATEAR HIDRATACIÓN A 1 DECIMAL
             val formattedHydration = String.format("%.1f", realHydration)
             _hydrationValue.value = "$formattedHydration lit."
 
-            _streakValue.value = "20 días"
-            _distanceValue.value = "1.5 km"
-            _goalValue.value = "75%"
+            _streakValue.value = "0 días"
+            _distanceValue.value = "0.0 km"
+            _goalValue.value = "0%"
 
             _isLoading.value = false
-            Log.d(TAG, "Datos de ejemplo configurados con hidratación real: ${formattedHydration}L")
+            Log.d(TAG, "Datos por defecto configurados con hidratación real: ${formattedHydration}L")
         } catch (e: Exception) {
             Log.e(TAG, "Error en setupDefaultStats: ${e.message}", e)
             handleError("Error al configurar estadísticas")
@@ -325,10 +397,8 @@ class DashboardViewModel : ViewModel() {
         }
     }
 
-    // ✅ NUEVA FUNCIÓN PARA ACTUALIZAR SOLO LA HIDRATACIÓN
     fun updateHydrationValue(liters: Double) {
         try {
-            // ✅ FORMATEAR A 1 DECIMAL
             val formattedLiters = String.format("%.1f", liters)
             _hydrationValue.value = "$formattedLiters lit."
 

@@ -15,6 +15,15 @@ class RecorridoRepository {
     private val db = FirebaseFirestore.getInstance()
     private val TAG = "RecorridoRepository"
 
+    // ✅ NUEVA DATA CLASS PARA ESTADÍSTICAS DIARIAS
+    data class EstadisticasDiarias(
+        val totalCalorias: Int = 0,
+        val totalMinutos: Int = 0,
+        val totalPasos: Int = 0,
+        val totalDistanciaKm: Double = 0.0,
+        val totalRecorridos: Int = 0
+    )
+
     // Guardar recorrido en Firestore
     fun guardarRecorrido(
         userId: String,
@@ -22,13 +31,14 @@ class RecorridoRepository {
         tiempoMs: Long,
         coordenadasInicio: LatLng?,
         coordenadasFin: LatLng?,
-        tipoActividad: String = "Caminata", // Parámetro opcional
-        notas: String = "", // Parámetro opcional
+        tipoActividad: String = "Caminata",
+        notas: String = "",
         callback: Callback<Boolean>
     ) {
         try {
             val fecha = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-            val fechaFormateada = SimpleDateFormat("dd MMMM yyyy", Locale.getDefault()).format(Date())
+            val fechaFormateada =
+                SimpleDateFormat("dd MMMM yyyy", Locale.getDefault()).format(Date())
             val hora = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
             val diaSemana = obtenerDiaSemana()
             val timestamp = System.currentTimeMillis()
@@ -50,15 +60,14 @@ class RecorridoRepository {
             val pasosEstimados = (distanciaKm * 1300).toInt()
 
             // Calcular calorías quemadas básico (aproximado: 60 cal por km para persona promedio)
-            // Puedes hacer esto más sofisticado más adelante con peso del usuario
             val caloriasQuemadas = (distanciaKm * 60).toInt()
 
             // Crear documento del recorrido
             val recorridoData = hashMapOf(
                 "id" to UUID.randomUUID().toString(),
                 "userId" to userId,
-                "fecha" to fecha, // Para consultas (yyyy-MM-dd)
-                "fechaFormateada" to fechaFormateada, // Para mostrar (dd MMMM yyyy)
+                "fecha" to fecha,
+                "fechaFormateada" to fechaFormateada,
                 "hora" to hora,
                 "diaSemana" to diaSemana,
                 "duracionMinutos" to (tiempoMs / 60000).toInt(),
@@ -82,8 +91,8 @@ class RecorridoRepository {
                 "tipoActividad" to tipoActividad,
                 "pasos" to pasosEstimados,
                 "caloriasQuemadas" to caloriasQuemadas,
-                "notas" to notas, // Campo para notas opcionales (vacío por defecto)
-                "imagenBase64" to "", // Campo para imagen opcional (vacío por defecto)
+                "notas" to notas,
+                "imagenBase64" to "",
                 "timestamp" to timestamp,
                 "createdAt" to timestamp,
                 "updatedAt" to timestamp,
@@ -109,7 +118,7 @@ class RecorridoRepository {
                         }
                         .addOnFailureListener { e ->
                             Log.e(TAG, "Error al actualizar ID del documento: ${e.message}", e)
-                            callback.onSuccess(true) // Aún así consideramos exitoso
+                            callback.onSuccess(true)
                         }
                 }
                 .addOnFailureListener { e ->
@@ -161,12 +170,18 @@ class RecorridoRepository {
                         fecha = data["fechaFormateada"] as? String ?: "",
                         hora = data["hora"] as? String ?: "",
                         duracion = data["duracionTexto"] as? String ?: "",
-                        distancia = String.format("%.2f km", (data["distanciaKm"] as? Double) ?: 0.0),
+                        distancia = String.format(
+                            "%.2f km",
+                            (data["distanciaKm"] as? Double) ?: 0.0
+                        ),
                         origen = data["origen"] as? String ?: "Ubicación actual",
                         destino = data["destino"] as? String ?: "Destino final",
                         coordenadasInicio = coordenadasInicio,
                         coordenadasFin = coordenadasFin,
-                        velocidadPromedio = String.format("%.1f km/h", (data["velocidadPromedio"] as? Double) ?: 0.0),
+                        velocidadPromedio = String.format(
+                            "%.1f km/h",
+                            (data["velocidadPromedio"] as? Double) ?: 0.0
+                        ),
                         tipoActividad = data["tipoActividad"] as? String ?: "Caminata"
                     )
 
@@ -181,6 +196,77 @@ class RecorridoRepository {
 
         } catch (e: Exception) {
             Log.e(TAG, "Error al obtener recorridos: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    // ✅ NUEVA FUNCIÓN PARA OBTENER ESTADÍSTICAS DIARIAS
+    suspend fun obtenerEstadisticasDiarias(
+        userId: String,
+        fecha: String? = null
+    ): Result<EstadisticasDiarias> {
+        return try {
+            val fechaBuscar =
+                fecha ?: SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+
+            Log.d(TAG, "Obteniendo estadísticas para fecha: $fechaBuscar")
+
+            val documents = db.collection("users")
+                .document(userId)
+                .collection("recorridos")
+                .whereEqualTo("fecha", fechaBuscar)
+                .get()
+                .await()
+
+            var totalCalorias = 0
+            var totalMinutos = 0
+            var totalPasos = 0
+            var totalDistancia = 0.0
+            var totalRecorridos = 0
+
+            for (document in documents) {
+                try {
+                    val data = document.data
+
+                    // Obtener valores directamente de la BD
+                    val calorias = (data["caloriasQuemadas"] as? Number)?.toInt() ?: 0
+                    val minutos = (data["duracionMinutos"] as? Number)?.toInt() ?: 0
+                    val pasos = (data["pasos"] as? Number)?.toInt() ?: 0
+                    val distancia = (data["distanciaKm"] as? Number)?.toDouble() ?: 0.0
+
+                    totalCalorias += calorias
+                    totalMinutos += minutos
+                    totalPasos += pasos
+                    totalDistancia += distancia
+                    totalRecorridos++
+
+                    Log.d(
+                        TAG,
+                        "Recorrido ${document.id}: ${calorias}cal, ${minutos}min, ${pasos}pasos, ${distancia}km"
+                    )
+
+                } catch (e: Exception) {
+                    Log.e(
+                        TAG,
+                        "Error al procesar estadísticas del documento ${document.id}: ${e.message}",
+                        e
+                    )
+                }
+            }
+
+            val estadisticas = EstadisticasDiarias(
+                totalCalorias = totalCalorias,
+                totalMinutos = totalMinutos,
+                totalPasos = totalPasos,
+                totalDistanciaKm = totalDistancia,
+                totalRecorridos = totalRecorridos
+            )
+
+            Log.d(TAG, "✓ Estadísticas calculadas: $estadisticas")
+            Result.success(estadisticas)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al obtener estadísticas diarias: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -221,12 +307,18 @@ class RecorridoRepository {
                         fecha = data["fechaFormateada"] as? String ?: "",
                         hora = data["hora"] as? String ?: "",
                         duracion = data["duracionTexto"] as? String ?: "",
-                        distancia = String.format("%.2f km", (data["distanciaKm"] as? Double) ?: 0.0),
+                        distancia = String.format(
+                            "%.2f km",
+                            (data["distanciaKm"] as? Double) ?: 0.0
+                        ),
                         origen = data["origen"] as? String ?: "Ubicación actual",
                         destino = data["destino"] as? String ?: "Destino final",
                         coordenadasInicio = coordenadasInicio,
                         coordenadasFin = coordenadasFin,
-                        velocidadPromedio = String.format("%.1f km/h", (data["velocidadPromedio"] as? Double) ?: 0.0),
+                        velocidadPromedio = String.format(
+                            "%.1f km/h",
+                            (data["velocidadPromedio"] as? Double) ?: 0.0
+                        ),
                         tipoActividad = data["tipoActividad"] as? String ?: "Caminata"
                     )
                 } catch (e: Exception) {
