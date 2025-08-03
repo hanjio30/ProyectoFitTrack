@@ -1,5 +1,6 @@
 package com.example.fittrack.View.ui.fragments
 
+import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -9,11 +10,11 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import com.example.fittrack.R
 import com.example.fittrack.View.ui.activities.ContentActivity
-import com.example.fittrack.view.ui.components.HeaderCardView
 import com.example.fittrack.ViewModel.DistanciaRecorridaViewModel
 import com.google.android.material.bottomnavigation.BottomNavigationView
 
@@ -70,7 +71,7 @@ class DistRecorridaFragment : Fragment() {
 
     private fun initializeViewModel() {
         try {
-            viewModel = ViewModelProvider(this)[DistanciaRecorridaViewModel::class.java]
+            viewModel = ViewModelProvider(this, DistanciaRecorridaViewModelFactory(requireContext()))[DistanciaRecorridaViewModel::class.java]
         } catch (e: Exception) {
             Log.e(TAG, "Error al inicializar ViewModel: ${e.message}", e)
         }
@@ -148,7 +149,8 @@ class DistRecorridaFragment : Fragment() {
             val userName = arguments?.getString("userName")
             Log.d(TAG, "Cargando datos para usuario: $userName")
 
-            viewModel.loadDistanceData(userName)
+            // Refrescar datos para mostrar los más actuales
+            viewModel.refreshData()
         } catch (e: Exception) {
             Log.e(TAG, "Error al cargar datos: ${e.message}", e)
         }
@@ -222,8 +224,20 @@ class DistRecorridaFragment : Fragment() {
         try {
             // Asegurar que la navegación esté oculta al regresar
             hideContentActivityNavigation()
+
+            // Refrescar datos por si vienen de MapFragment
+            viewModel.refreshData()
         } catch (e: Exception) {
             Log.e(TAG, "Error en onResume: ${e.message}", e)
+        }
+    }
+    class DistanciaRecorridaViewModelFactory(private val context: Context) : ViewModelProvider.Factory {
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            if (modelClass.isAssignableFrom(DistanciaRecorridaViewModel::class.java)) {
+                @Suppress("UNCHECKED_CAST")
+                return DistanciaRecorridaViewModel(context) as T
+            }
+            throw IllegalArgumentException("Unknown ViewModel class")
         }
     }
 }

@@ -4,8 +4,11 @@ import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import android.content.Context
+import android.content.SharedPreferences
+import androidx.lifecycle.ViewModelProvider
 
-class DistanciaRecorridaViewModel : ViewModel() {
+class DistanciaRecorridaViewModel(private val context: Context) : ViewModel() {
 
     companion object {
         private const val TAG = "DistanciaRecorridaViewModel"
@@ -35,6 +38,8 @@ class DistanciaRecorridaViewModel : ViewModel() {
     private val _records = MutableLiveData<RecordsPersonales>()
     val records: LiveData<RecordsPersonales> = _records
 
+
+
     fun loadDistanceData(userName: String?) {
         try {
             Log.d(TAG, "Cargando datos de distancia para: $userName")
@@ -55,12 +60,17 @@ class DistanciaRecorridaViewModel : ViewModel() {
 
     private fun loadMockData() {
         try {
-            // Datos principales
-            _distanciaTotal.value = "150.5 km"
-            _distanciaSemana.value = "28.5 km"
-            _distanciaMes.value = "112.8 km"
+            // Cargar datos desde storage o usar valores por defecto
+            val totalDistance = getStoredValue("total_distance", 150.5f)
+            val weekDistance = getStoredValue("week_distance", 28.5f)
+            val monthDistance = getStoredValue("month_distance", 112.8f)
 
-            // Progreso semanal
+            // Datos principales
+            _distanciaTotal.value = String.format("%.1f km", totalDistance)
+            _distanciaSemana.value = String.format("%.1f km", weekDistance)
+            _distanciaMes.value = String.format("%.1f km", monthDistance)
+
+            // Progreso semanal (estos pueden seguir siendo mock data)
             val progresoSemanas = listOf(
                 ProgresoSemana("Sem 2", 18.5f, 45),
                 ProgresoSemana("Sem 3", 22.3f, 55),
@@ -80,10 +90,9 @@ class DistanciaRecorridaViewModel : ViewModel() {
             )
             _records.value = records
 
-            Log.d(TAG, "Datos mock cargados exitosamente")
-
+            Log.d(TAG, "Datos cargados exitosamente desde storage")
         } catch (e: Exception) {
-            Log.e(TAG, "Error al cargar datos mock: ${e.message}", e)
+            Log.e(TAG, "Error al cargar datos: ${e.message}", e)
             _errorMessage.value = "Error al procesar los datos"
         }
     }
@@ -94,6 +103,66 @@ class DistanciaRecorridaViewModel : ViewModel() {
 
     fun clearError() {
         _errorMessage.value = null
+    }
+    // Función para agregar nueva distancia
+    fun addNewDistance(distance: Float, duration: Long, date: String) {
+        try {
+            Log.d(TAG, "Agregando nueva distancia: $distance km")
+
+            val currentTotal = getCurrentTotalDistance() + distance
+            val currentWeek = getCurrentWeekDistance() + distance
+            val currentMonth = getCurrentMonthDistance() + distance
+
+            // Actualizar los LiveData
+            _distanciaTotal.value = String.format("%.1f km", currentTotal)
+            _distanciaSemana.value = String.format("%.1f km", currentWeek)
+            _distanciaMes.value = String.format("%.1f km", currentMonth)
+
+            // Guardar en almacenamiento persistente
+            saveToStorage(currentTotal, currentWeek, currentMonth)
+
+            Log.d(TAG, "Distancia agregada exitosamente")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al guardar distancia: ${e.message}", e)
+            _errorMessage.value = "Error al guardar distancia: ${e.message}"
+        }
+    }
+
+    private fun getCurrentTotalDistance(): Float {
+        return getStoredValue("total_distance", 150.5f) // 150.5f es el valor por defecto
+    }
+
+    private fun getCurrentWeekDistance(): Float {
+        return getStoredValue("week_distance", 28.5f) // 28.5f es el valor por defecto
+    }
+
+    private fun getCurrentMonthDistance(): Float {
+        return getStoredValue("month_distance", 112.8f) // 112.8f es el valor por defecto
+    }
+
+    private fun saveToStorage(total: Float, week: Float, month: Float) {
+        try {
+            val sharedPref = context.getSharedPreferences("fitness_data", Context.MODE_PRIVATE)
+            with(sharedPref.edit()) {
+                putFloat("total_distance", total)
+                putFloat("week_distance", week)
+                putFloat("month_distance", month)
+                apply()
+            }
+            Log.d(TAG, "Datos guardados en storage")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al guardar en storage: ${e.message}", e)
+        }
+    }
+
+    private fun getStoredValue(key: String, defaultValue: Float): Float {
+        return try {
+            val sharedPref = context.getSharedPreferences("fitness_data", Context.MODE_PRIVATE)
+            sharedPref.getFloat(key, defaultValue)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al obtener valor stored: ${e.message}", e)
+            defaultValue
+        }
     }
 
     // Data classes para estructurar los datos

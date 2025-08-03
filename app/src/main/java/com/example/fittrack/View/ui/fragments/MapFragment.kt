@@ -1,5 +1,6 @@
 package com.example.fittrack.View.ui.fragments
 
+import com.example.fittrack.ViewModel.RecorridoViewModel
 import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -7,6 +8,7 @@ import android.location.Location
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -14,7 +16,11 @@ import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import com.example.fittrack.R
+import com.example.fittrack.View.ui.fragments.DistRecorridaFragment
+import com.example.fittrack.ViewModel.DistanciaRecorridaViewModel
 import com.example.fittrack.databinding.FragmentMapBinding
 import com.google.android.gms.location.*
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -23,6 +29,9 @@ import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.*
 import kotlin.collections.ArrayList
+import java.text.SimpleDateFormat
+import java.util.*
+
 
 class MapFragment : Fragment(), OnMapReadyCallback {
 
@@ -79,6 +88,8 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         setupClickListeners()
         setupTimer()
         updateUIState()
+        updateCurrentDate()
+        resetOverlayValues()
     }
 
     private fun setupMap() {
@@ -166,6 +177,12 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             }
         }
     }
+
+    private fun updateCurrentDate() {
+        val currentDate = SimpleDateFormat("dd MMMM yyyy", Locale.getDefault()).format(Date())
+        binding.tvDate.text = currentDate
+    }
+
 
     override fun onMapReady(map: GoogleMap) {
         googleMap = map
@@ -339,16 +356,25 @@ class MapFragment : Fragment(), OnMapReadyCallback {
 
         val timeText = String.format("%02d:%02d:%02d", hours, minutes, seconds)
         binding.tvCurrentDuration.text = timeText
+
+        // Actualizar overlay superior con el formato completo siempre
+        val durationText = String.format("%dh %d min %d seg", hours, minutes, seconds)
+        binding.tvDuration.text = durationText
     }
 
     private fun updateDistanceDisplay() {
         val distanceInKm = totalDistance / 1000f
+
+        // Actualizar card de información durante el ejercicio
         binding.tvCurrentDistance.text = String.format("%.2f km", distanceInKm)
 
         // Calcular velocidad
         val elapsedTimeInHours = (System.currentTimeMillis() - startTime) / 3600000f
         val speed = if (elapsedTimeInHours > 0) distanceInKm / elapsedTimeInHours else 0f
         binding.tvCurrentSpeed.text = String.format("%.1f km/h", speed)
+
+        // Actualizar overlay superior con la distancia actual
+        binding.tvDistance.text = String.format("%.3fkm", distanceInKm)
     }
 
     private fun updateUIState() {
@@ -383,9 +409,34 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun saveRoute() {
-        // TODO: Implementar guardado de ruta
-        Toast.makeText(context, "Ruta guardada", Toast.LENGTH_SHORT).show()
-        resetExercise()
+        try {
+            val distanceInKm = totalDistance / 1000f
+            val elapsedTime = System.currentTimeMillis() - startTime
+
+            // Obtener coordenadas de inicio y fin
+            val coordenadasInicio = if (routePoints.isNotEmpty()) routePoints.first() else null
+            val coordenadasFin = if (routePoints.isNotEmpty()) routePoints.last() else null
+
+            // Usar el ViewModel compartido de RecorridoFragment
+            val recorridoViewModel = ViewModelProvider(requireActivity())[RecorridoViewModel::class.java]
+
+            // Agregar el recorrido al historial
+            recorridoViewModel.agregarRecorrido(
+                distanciaKm = distanceInKm,
+                tiempoMs = elapsedTime,
+                coordenadasInicio = coordenadasInicio,
+                coordenadasFin = coordenadasFin
+            )
+
+            Log.d("MapFragment", "Recorrido guardado: $distanceInKm km, tiempo: $elapsedTime ms")
+            Toast.makeText(context, "Recorrido registrado: ${String.format("%.2f km", distanceInKm)}", Toast.LENGTH_SHORT).show()
+
+            resetExercise()
+        } catch (e: Exception) {
+            Log.e("MapFragment", "Error al guardar recorrido: ${e.message}", e)
+            Toast.makeText(context, "Error al guardar recorrido", Toast.LENGTH_SHORT).show()
+            resetExercise()
+        }
     }
 
     private fun editRoute() {
@@ -413,6 +464,9 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         binding.tvCurrentDuration.text = "00:00:00"
         binding.tvCurrentSpeed.text = "0.0 km/h"
 
+        // Resetear valores del overlay superior
+        resetOverlayValues()
+
         hideOptionsOverlay()
     }
 
@@ -426,6 +480,11 @@ class MapFragment : Fragment(), OnMapReadyCallback {
 
     private fun hideScheduleOverlay() {
         binding.overlaySchedule.visibility = View.GONE
+    }
+
+    private fun resetOverlayValues() {
+        binding.tvDistance.text = "0.000km"
+        binding.tvDuration.text = "0h 0 min 0 seg"
     }
 
     override fun onRequestPermissionsResult(

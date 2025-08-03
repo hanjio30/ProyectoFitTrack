@@ -27,6 +27,8 @@
     <color name="text_primary">#1f2d36</color>
     <color name="text_secondary">#7F8C8D</color>
 
+    <color name="yellow_icon">#FFC107</color>
+    <color name="teal_card">#0B8789</color>
 
 
 </resources>
