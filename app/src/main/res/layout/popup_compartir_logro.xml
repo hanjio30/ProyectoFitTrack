@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- popup_compartir_logro.xml -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@color/background_light"
+    android:padding="24dp"
+    android:minWidth="320dp">
+
+    <!-- Título del Popup -->
+    <TextView
+        android:id="@+id/tv_popup_compartir_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="🎉 ¡Comparte tu logro!"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="@color/text_primary"
+        android:gravity="center"
+        android:layout_marginBottom="8dp"/>
+
+    <TextView
+        android:id="@+id/tv_popup_compartir_subtitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Elige dónde quieres compartir tu progreso"
+        android:textSize="14sp"
+        android:textColor="@color/text_secondary"
+        android:gravity="center"
+        android:layout_marginBottom="20dp"/>
+
+    <!-- Grid de botones de redes sociales -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginBottom="16dp">
+
+        <!-- Primera fila -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:weightSum="2"
+            android:layout_marginBottom="12dp">
+
+            <Button
+                android:id="@+id/btn_whatsapp"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="📱 WhatsApp"
+                android:textColor="@android:color/white"
+                android:backgroundTint="#25D366"
+                android:layout_marginEnd="6dp"
+                android:textAllCaps="false"
+                android:textSize="14sp"/>
+
+            <Button
+                android:id="@+id/btn_facebook"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="📘 Facebook"
+                android:textColor="@android:color/white"
+                android:backgroundTint="#1877F2"
+                android:layout_marginStart="6dp"
+                android:textAllCaps="false"
+                android:textSize="14sp"/>
+        </LinearLayout>
+
+        <!-- Segunda fila -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:weightSum="2"
+            android:layout_marginBottom="12dp">
+
+            <Button
+                android:id="@+id/btn_twitter"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="🐦 Twitter"
+                android:textColor="@android:color/white"
+                android:backgroundTint="#1DA1F2"
+                android:layout_marginEnd="6dp"
+                android:textAllCaps="false"
+                android:textSize="14sp"/>
+
+            <Button
+                android:id="@+id/btn_instagram"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="📸 Instagram"
+                android:textColor="@android:color/white"
+                android:backgroundTint="#E4405F"
+                android:layout_marginStart="6dp"
+                android:textAllCaps="false"
+                android:textSize="14sp"/>
+        </LinearLayout>
+
+        <!-- Tercera fila -->
+        <Button
+            android:id="@+id/btn_otros"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="📤 Otras aplicaciones"
+            android:textColor="@android:color/white"
+            android:backgroundTint="@color/bt_secon"
+            android:textAllCaps="false"
+            android:textSize="14sp"/>
+    </LinearLayout>
+
+    <!-- Botón cancelar -->
+    <Button
+        android:id="@+id/btn_cancelar_compartir"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:text="Cancelar"
+        android:textColor="@color/text_primary"
+        android:background="@drawable/button_outline"
+        android:textAllCaps="false"
+        android:textSize="14sp"/>
+
+</LinearLayout>

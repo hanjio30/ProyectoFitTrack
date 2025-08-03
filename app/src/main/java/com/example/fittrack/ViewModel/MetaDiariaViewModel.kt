@@ -4,6 +4,10 @@ import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.fittrack.model.MetaDiaria
+import com.example.fittrack.network.MetaDiariaRepository
+import kotlinx.coroutines.launch
 
 class MetaDiariaViewModel : ViewModel() {
 
@@ -11,7 +15,9 @@ class MetaDiariaViewModel : ViewModel() {
         private const val TAG = "MetaDiariaViewModel"
     }
 
-    // LiveData para los datos de meta diaria
+    private val repository = MetaDiariaRepository()
+
+    // LiveData existente
     private val _progresoActual = MutableLiveData<Double>()
     val progresoActual: LiveData<Double> = _progresoActual
 
@@ -36,177 +42,235 @@ class MetaDiariaViewModel : ViewModel() {
     private val _metaActualizada = MutableLiveData<Boolean>()
     val metaActualizada: LiveData<Boolean> = _metaActualizada
 
-    // Datos adicionales para la UI
     private val _estadisticasAdicionales = MutableLiveData<EstadisticasAdicionales>()
     val estadisticasAdicionales: LiveData<EstadisticasAdicionales> = _estadisticasAdicionales
 
-    fun loadGoalData(userName: String?) {
-        try {
-            Log.d(TAG, "Cargando datos de meta diaria para: $userName")
+    // ✨ NUEVOS LIVEDATA PARA MEJORAR LA VISUALIZACIÓN
+    private val _mostrarFelicitaciones = MutableLiveData<Boolean>()
+    val mostrarFelicitaciones: LiveData<Boolean> = _mostrarFelicitaciones
 
-            _isLoading.value = true
+    private val _mostrarPuntos = MutableLiveData<Boolean>()
+    val mostrarPuntos: LiveData<Boolean> = _mostrarPuntos
 
-            // Simular carga de datos
-            loadMockGoalData()
+    private val _mostrarCompartir = MutableLiveData<Boolean>()
+    val mostrarCompartir: LiveData<Boolean> = _mostrarCompartir
 
-            _isLoading.value = false
+    private val _mensajeFelicitaciones = MutableLiveData<String>()
+    val mensajeFelicitaciones: LiveData<String> = _mensajeFelicitaciones
 
-        } catch (e: Exception) {
-            Log.e(TAG, "Error al cargar datos: ${e.message}", e)
-            _errorMessage.value = "Error al cargar datos de meta diaria"
-            _isLoading.value = false
+    private val _tipoLogro = MutableLiveData<TipoLogro>()
+    val tipoLogro: LiveData<TipoLogro> = _tipoLogro
+
+    private val _datosParaCompartir = MutableLiveData<DatosCompartir>()
+    val datosParaCompartir: LiveData<DatosCompartir> = _datosParaCompartir
+
+    private var currentUserId: String? = null
+
+    fun loadGoalData(userId: String?) {
+        if (userId.isNullOrEmpty()) {
+            _errorMessage.value = "ID de usuario no válido"
+            return
+        }
+
+        currentUserId = userId
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Cargando datos de meta diaria para: $userId")
+                _isLoading.value = true
+
+                val resultMeta = repository.getMetaDiariaActual(userId)
+
+                if (resultMeta.isSuccess) {
+                    val meta = resultMeta.getOrNull()!!
+
+                    actualizarDatosBasicos(meta)
+                    actualizarVisualizacionDinamica(meta)
+                    loadEstadisticas(userId)
+
+                    Log.d(TAG, "Datos de meta diaria cargados exitosamente")
+                } else {
+                    val error = resultMeta.exceptionOrNull()
+                    Log.e(TAG, "Error al cargar meta: ${error?.message}", error)
+                    _errorMessage.value = "Error al cargar datos de meta diaria"
+                }
+
+                _isLoading.value = false
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error al cargar datos: ${e.message}", e)
+                _errorMessage.value = "Error al cargar datos de meta diaria"
+                _isLoading.value = false
+            }
         }
     }
 
-    private fun loadMockGoalData() {
+    // En MetaDiariaViewModel.kt - REEMPLAZA estas funciones
+
+    private fun actualizarDatosBasicos(meta: MetaDiaria) {
+        Log.d(TAG, "=== ACTUALIZANDO DATOS BÁSICOS ===")
+        Log.d(TAG, "Progreso: ${meta.progresoActual}")
+        Log.d(TAG, "Meta: ${meta.metaKilometros}")
+        Log.d(TAG, "Porcentaje: ${meta.porcentajeCompletado}")
+        Log.d(TAG, "Puntos: ${meta.puntosGanados}")
+
+        _progresoActual.value = meta.progresoActual
+        _metaDiaria.value = meta.metaKilometros
+        _porcentajeCompletado.value = meta.porcentajeCompletado
+        _puntosGanados.value = meta.puntosGanados
+
+        val mensaje = generarMensajeMeta(meta.porcentajeCompletado)
+        _mensajeMeta.value = mensaje
+
+        Log.d(TAG, "Mensaje generado: $mensaje")
+    }
+
+    private fun actualizarVisualizacionDinamica(meta: MetaDiaria) {
+        val porcentaje = meta.porcentajeCompletado
+        Log.d(TAG, "=== ACTUALIZANDO VISUALIZACIÓN DINÁMICA ===")
+        Log.d(TAG, "Porcentaje para lógica: $porcentaje")
+
+        // Determinar qué mostrar basado en el progreso
+        when {
+            porcentaje >= 100 -> {
+                Log.d(TAG, "Estado: META_COMPLETADA (≥100%)")
+                _mostrarFelicitaciones.value = true
+                _mostrarPuntos.value = true
+                _mostrarCompartir.value = true
+                _mensajeFelicitaciones.value = "¡Impresionante! Tu dedicación es inspiradora 🏆"
+                _tipoLogro.value = TipoLogro.META_COMPLETADA
+            }
+            porcentaje >= 75 -> {
+                Log.d(TAG, "Estado: CASI_COMPLETA (75-99%)")
+                _mostrarFelicitaciones.value = true
+                _mostrarPuntos.value = true
+                _mostrarCompartir.value = false
+                _mensajeFelicitaciones.value = "¡Excelente progreso! Estás muy cerca 💪"
+                _tipoLogro.value = TipoLogro.CASI_COMPLETA
+            }
+            porcentaje >= 50 -> {
+                Log.d(TAG, "Estado: MEDIO_CAMINO (50-74%)")
+                _mostrarFelicitaciones.value = true
+                _mostrarPuntos.value = true
+                _mostrarCompartir.value = false
+                _mensajeFelicitaciones.value = "¡Vas por buen camino! Sigue así 🚀"
+                _tipoLogro.value = TipoLogro.MEDIO_CAMINO
+            }
+            porcentaje >= 25 -> {
+                Log.d(TAG, "Estado: INICIO (25-49%)")
+                _mostrarFelicitaciones.value = false
+                _mostrarPuntos.value = true
+                _mostrarCompartir.value = false
+                _tipoLogro.value = TipoLogro.INICIO
+            }
+            else -> {
+                Log.d(TAG, "Estado: SIN_PROGRESO (0-24%)")
+                _mostrarFelicitaciones.value = false
+                _mostrarPuntos.value = false
+                _mostrarCompartir.value = false
+                _tipoLogro.value = TipoLogro.SIN_PROGRESO
+            }
+        }
+
+        Log.d(TAG, "Cards visibles - Felicitaciones: ${_mostrarFelicitaciones.value}, Puntos: ${_mostrarPuntos.value}, Compartir: ${_mostrarCompartir.value}")
+
+        // Preparar datos para compartir
+        prepararDatosParaCompartir(meta)
+    }
+
+    private fun prepararDatosParaCompartir(meta: MetaDiaria) {
+        val datos = DatosCompartir(
+            progreso = meta.progresoActual,
+            meta = meta.metaKilometros,
+            porcentaje = meta.porcentajeCompletado,
+            puntos = meta.puntosGanados,
+            fecha = meta.fecha,
+            mensajePersonalizado = generarMensajeParaCompartir(meta)
+        )
+        _datosParaCompartir.value = datos
+    }
+
+    private fun generarMensajeParaCompartir(meta: MetaDiaria): String {
+        return when {
+            meta.porcentajeCompletado >= 100 ->
+                "🏆 ¡Meta diaria completada! Recorrí ${String.format("%.1f", meta.progresoActual)} km de ${String.format("%.1f", meta.metaKilometros)} km. ¡${meta.puntosGanados} puntos ganados! 💪 #FitTrack #MetaCumplida"
+
+            meta.porcentajeCompletado >= 75 ->
+                "🚀 ¡${meta.porcentajeCompletado}% de mi meta diaria! Recorrí ${String.format("%.1f", meta.progresoActual)} km de ${String.format("%.1f", meta.metaKilometros)} km. ¡Casi lo logro! 💪 #FitTrack #CasiAhi"
+
+            meta.porcentajeCompletado >= 50 ->
+                "💪 ¡A mitad de camino! ${String.format("%.1f", meta.progresoActual)} km de ${String.format("%.1f", meta.metaKilometros)} km completados (${meta.porcentajeCompletado}%). ¡Sigo adelante! #FitTrack #MitadCamino"
+
+            else ->
+                "🚀 ¡Comenzando mi día activo! Meta de hoy: ${String.format("%.1f", meta.metaKilometros)} km. ¡Vamos por ello! #FitTrack #VidaActiva"
+        }
+    }
+
+    private suspend fun loadEstadisticas(userId: String) {
         try {
-            // Datos principales de la meta
-            val progreso = 10.0
-            val meta = 10.0
+            val resultEstadisticas = repository.getEstadisticasUsuario(userId)
 
-            _progresoActual.value = progreso
-            _metaDiaria.value = meta
+            if (resultEstadisticas.isSuccess) {
+                val stats = resultEstadisticas.getOrNull()!!
 
-            // Calcular porcentaje
-            val porcentaje = if (meta > 0) {
-                ((progreso / meta) * 100).toInt().coerceAtMost(100)
-            } else {
-                0
+                val estadisticas = EstadisticasAdicionales(
+                    diasConsecutivos = stats.diasConsecutivos,
+                    metasAlcanzadas = stats.metasAlcanzadas,
+                    mejorRacha = stats.mejorRacha,
+                    promedioSemanal = stats.promedioSemanal
+                )
+                _estadisticasAdicionales.value = estadisticas
             }
-            _porcentajeCompletado.value = porcentaje
-
-            // Mensaje según el progreso
-            val mensaje = when {
-                porcentaje >= 100 -> "¡Meta alcanzada!"
-                porcentaje >= 75 -> "¡Casi lo logras!"
-                porcentaje >= 50 -> "¡Vas por buen camino!"
-                porcentaje >= 25 -> "¡Sigue así!"
-                else -> "¡Vamos, tú puedes!"
-            }
-            _mensajeMeta.value = mensaje
-
-            // Puntos ganados (ejemplo de cálculo)
-            val puntos = when {
-                porcentaje >= 100 -> 50
-                porcentaje >= 75 -> 35
-                porcentaje >= 50 -> 25
-                porcentaje >= 25 -> 15
-                else -> 5
-            }
-            _puntosGanados.value = puntos
-
-            // Estadísticas adicionales
-            val estadisticas = EstadisticasAdicionales(
-                diasConsecutivos = 7,
-                metasAlcanzadas = 15,
-                mejorRacha = 12,
-                promedioSemanal = 8.5
-            )
-            _estadisticasAdicionales.value = estadisticas
-
-            Log.d(TAG, "Datos mock de meta diaria cargados exitosamente")
-
         } catch (e: Exception) {
-            Log.e(TAG, "Error al cargar datos mock: ${e.message}", e)
-            _errorMessage.value = "Error al procesar los datos"
+            Log.e(TAG, "Error al cargar estadísticas: ${e.message}", e)
         }
     }
 
     fun updateGoal(nuevaMeta: Double) {
-        try {
-            Log.d(TAG, "Actualizando meta diaria a: $nuevaMeta km")
-
-            _isLoading.value = true
-
-            // Simular guardado (aquí harías la llamada a tu API/BD)
-            _metaDiaria.value = nuevaMeta
-
-            // Recalcular porcentaje con la nueva meta
-            val progresoActual = _progresoActual.value ?: 0.0
-            val porcentaje = if (nuevaMeta > 0) {
-                ((progresoActual / nuevaMeta) * 100).toInt().coerceAtMost(100)
-            } else {
-                0
-            }
-            _porcentajeCompletado.value = porcentaje
-
-            // Actualizar mensaje
-            val mensaje = when {
-                porcentaje >= 100 -> "¡Meta alcanzada!"
-                porcentaje >= 75 -> "¡Casi lo logras!"
-                porcentaje >= 50 -> "¡Vas por buen camino!"
-                porcentaje >= 25 -> "¡Sigue así!"
-                else -> "¡Vamos, tú puedes!"
-            }
-            _mensajeMeta.value = mensaje
-
-            // Actualizar puntos
-            val puntos = when {
-                porcentaje >= 100 -> 50
-                porcentaje >= 75 -> 35
-                porcentaje >= 50 -> 25
-                porcentaje >= 25 -> 15
-                else -> 5
-            }
-            _puntosGanados.value = puntos
-
-            _metaActualizada.value = true
-            _isLoading.value = false
-
-            Log.d(TAG, "Meta actualizada exitosamente")
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Error al actualizar meta: ${e.message}", e)
-            _errorMessage.value = "Error al actualizar la meta"
-            _isLoading.value = false
+        val userId = currentUserId
+        if (userId.isNullOrEmpty()) {
+            _errorMessage.value = "Usuario no identificado"
+            return
         }
-    }
 
-    fun updateProgress(nuevoProgreso: Double) {
-        try {
-            Log.d(TAG, "Actualizando progreso a: $nuevoProgreso km")
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Actualizando meta diaria a: $nuevaMeta km")
+                _isLoading.value = true
 
-            _progresoActual.value = nuevoProgreso
+                val fechaHoy = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                    .format(java.util.Date())
 
-            // Recalcular porcentaje
-            val meta = _metaDiaria.value ?: 10.0
-            val porcentaje = if (meta > 0) {
-                ((nuevoProgreso / meta) * 100).toInt().coerceAtMost(100)
-            } else {
-                0
+                val result = repository.actualizarMeta(userId, fechaHoy, nuevaMeta)
+
+                if (result.isSuccess) {
+                    val metaActualizada = result.getOrNull()!!
+
+                    actualizarDatosBasicos(metaActualizada)
+                    actualizarVisualizacionDinamica(metaActualizada)
+
+                    _metaActualizada.value = true
+
+                    Log.d(TAG, "Meta actualizada exitosamente")
+                } else {
+                    val error = result.exceptionOrNull()
+                    Log.e(TAG, "Error al actualizar meta: ${error?.message}", error)
+                    _errorMessage.value = "Error al actualizar la meta"
+                }
+
+                _isLoading.value = false
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error al actualizar meta: ${e.message}", e)
+                _errorMessage.value = "Error al actualizar la meta"
+                _isLoading.value = false
             }
-            _porcentajeCompletado.value = porcentaje
-
-            // Actualizar mensaje
-            val mensaje = when {
-                porcentaje >= 100 -> "¡Meta alcanzada!"
-                porcentaje >= 75 -> "¡Casi lo logras!"
-                porcentaje >= 50 -> "¡Vas por buen camino!"
-                porcentaje >= 25 -> "¡Sigue así!"
-                else -> "¡Vamos, tú puedes!"
-            }
-            _mensajeMeta.value = mensaje
-
-            // Actualizar puntos
-            val puntos = when {
-                porcentaje >= 100 -> 50
-                porcentaje >= 75 -> 35
-                porcentaje >= 50 -> 25
-                porcentaje >= 25 -> 15
-                else -> 5
-            }
-            _puntosGanados.value = puntos
-
-            Log.d(TAG, "Progreso actualizado exitosamente")
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Error al actualizar progreso: ${e.message}", e)
-            _errorMessage.value = "Error al actualizar el progreso"
         }
     }
 
     fun refreshData() {
-        loadGoalData(null)
+        currentUserId?.let { userId ->
+            loadGoalData(userId)
+        }
     }
 
     fun clearError() {
@@ -217,7 +281,6 @@ class MetaDiariaViewModel : ViewModel() {
         _metaActualizada.value = false
     }
 
-    // Métodos para obtener valores actuales (útil para validaciones)
     fun getCurrentGoal(): Double {
         return _metaDiaria.value ?: 10.0
     }
@@ -230,11 +293,38 @@ class MetaDiariaViewModel : ViewModel() {
         return _porcentajeCompletado.value ?: 0
     }
 
-    // Data class para estadísticas adicionales
+    private fun generarMensajeMeta(porcentaje: Int): String {
+        return when {
+            porcentaje >= 100 -> "¡Meta alcanzada!"
+            porcentaje >= 75 -> "¡Casi lo logras!"
+            porcentaje >= 50 -> "¡Vas por buen camino!"
+            porcentaje >= 25 -> "¡Sigue así!"
+            else -> "¡Vamos, tú puedes!"
+        }
+    }
+
+    // Data classes
     data class EstadisticasAdicionales(
         val diasConsecutivos: Int,
         val metasAlcanzadas: Int,
         val mejorRacha: Int,
         val promedioSemanal: Double
     )
+
+    data class DatosCompartir(
+        val progreso: Double,
+        val meta: Double,
+        val porcentaje: Int,
+        val puntos: Int,
+        val fecha: String,
+        val mensajePersonalizado: String
+    )
+
+    enum class TipoLogro {
+        SIN_PROGRESO,
+        INICIO,
+        MEDIO_CAMINO,
+        CASI_COMPLETA,
+        META_COMPLETADA
+    }
 }

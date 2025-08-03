@@ -43,7 +43,7 @@
                     android:textSize="18sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_primary"
-                    android:layout_weight="1" /> <!-- Esto hace que el texto ocupe el espacio disponible -->
+                    android:layout_weight="1" />
 
                 <ImageView
                     android:id="@+id/iv_edit_icon"
@@ -52,7 +52,6 @@
                     android:src="@drawable/ic_edit"
                     android:contentDescription="Icono de Editar" />
             </LinearLayout>
-
 
             <!-- Card: Progreso Diario -->
             <androidx.cardview.widget.CardView
@@ -75,7 +74,7 @@
                         android:id="@+id/tv_progress_value"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="10"
+                        android:text="0.0"
                         android:textSize="36sp"
                         android:textStyle="bold"
                         android:textColor="@color/bt_main"
@@ -85,7 +84,7 @@
                         android:id="@+id/tv_progress_total"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="/10 km"
+                        android:text="/10.0 km"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp" />
 
@@ -93,7 +92,7 @@
                         android:id="@+id/tv_progress_percent"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="100% Completado"
+                        android:text="0% Completado"
                         android:textStyle="bold"
                         android:layout_marginTop="12dp"
                         android:textColor="@color/text_primary" />
@@ -102,13 +101,13 @@
                         android:id="@+id/tv_goal_message"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="¡Meta alcanzada!"
+                        android:text="¡Vamos, tú puedes!"
                         android:textColor="@color/text_secondary"
                         android:layout_marginTop="4dp" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- Card: Felicitaciones -->
+            <!-- Card: Felicitaciones (Dinámica) -->
             <androidx.cardview.widget.CardView
                 android:id="@+id/card_congrats"
                 android:layout_width="match_parent"
@@ -116,7 +115,8 @@
                 app:cardCornerRadius="12dp"
                 app:cardElevation="2dp"
                 app:cardBackgroundColor="@color/bt_main"
-                android:layout_marginBottom="12dp">
+                android:layout_marginBottom="12dp"
+                android:visibility="gone">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -145,7 +145,7 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- Card: Puntos Ganados (nuevo diseño) -->
+            <!-- Card: Puntos Ganados (Dinámica) -->
             <androidx.cardview.widget.CardView
                 android:id="@+id/card_points"
                 android:layout_width="match_parent"
@@ -153,7 +153,8 @@
                 app:cardCornerRadius="12dp"
                 app:cardElevation="2dp"
                 android:layout_marginBottom="12dp"
-                app:cardBackgroundColor="@color/card_lavender">
+                app:cardBackgroundColor="@color/card_lavender"
+                android:visibility="gone">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -188,7 +189,7 @@
                             android:id="@+id/tv_points_total"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="+50"
+                            android:text="+0"
                             android:textColor="@color/bt_secon"
                             android:textStyle="bold"
                             android:textSize="16sp" />
@@ -307,7 +308,7 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- Card: Compartir logro -->
+            <!-- Card: Compartir logro (Dinámica) -->
             <androidx.cardview.widget.CardView
                 android:id="@+id/card_share"
                 android:layout_width="match_parent"
@@ -315,7 +316,8 @@
                 app:cardCornerRadius="12dp"
                 app:cardElevation="2dp"
                 android:layout_marginBottom="24dp"
-                app:cardBackgroundColor="@color/card_purple_light">
+                app:cardBackgroundColor="@color/card_purple_light"
+                android:visibility="gone">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -328,7 +330,7 @@
                         android:id="@+id/tv_share_icon"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="📢"
+                        android:text="🎉"
                         android:textSize="18sp"
                         android:layout_marginEnd="8dp" />
 
@@ -337,15 +339,16 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Compartir tu logro"
+                        android:text="¡Comparte tu logro!"
                         android:textColor="@color/text_primary"
-                        android:textSize="14sp" />
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
 
                     <Button
                         android:id="@+id/btn_share"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Redes"
+                        android:text="Compartir"
                         android:textAllCaps="false"
                         android:backgroundTint="@color/bt_secon"
                         android:textColor="@android:color/white" />
