@@ -21,7 +21,8 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:padding="20dp">
-            <!-- Íconos alineados a la derecha y texto a la izquierda -->
+
+            <!-- Íconos alineados a la derecha -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -39,16 +40,17 @@
                     android:padding="8dp"
                     android:src="@drawable/ic_calendar" />
 
-                <!-- Ícono de Regaloo -->
+                <!-- Ícono de Regalo -->
                 <ImageView
                     android:id="@+id/iv_gift"
-                    android:layout_width="37dp"
-                    android:layout_height="37dp"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:padding="8dp"
                     android:src="@drawable/ic_gift" />
             </LinearLayout>
 
+            <!-- Card principal de racha -->
             <androidx.cardview.widget.CardView
                 android:id="@+id/cv_main_streak"
                 android:layout_width="match_parent"
@@ -78,7 +80,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
                         android:letterSpacing="0.05"
-                        android:text="22"
+                        android:text="0"
                         android:textColor="@android:color/white"
                         android:textSize="48sp"
                         android:textStyle="bold"
@@ -116,7 +118,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="20dp"
                         android:alpha="0.85"
-                        android:text="Nivel: Experto 🏆"
+                        android:text="Nivel: Principiante 🌱"
                         android:textColor="@android:color/white"
                         android:textSize="15sp"
                         android:textStyle="bold"
@@ -171,7 +173,7 @@
                             android:id="@+id/tv_best_streak_value"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="45"
+                            android:text="0"
                             android:textSize="28sp"
                             android:textStyle="bold"
                             android:textColor="@color/text_primary"
@@ -224,7 +226,7 @@
                             android:id="@+id/tv_total_points_value"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="230"
+                            android:text="0"
                             android:textSize="28sp"
                             android:textStyle="bold"
                             android:textColor="@color/text_primary"
@@ -283,51 +285,41 @@
                             android:id="@+id/tv_milestone_progress"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="70%"
+                            android:text="0%"
                             android:textColor="@color/bt_main"
                             android:textSize="14sp"
                             android:textStyle="bold" />
                     </LinearLayout>
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Mes Completo"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="14sp"
-                        android:layout_marginTop="8dp"
-                        android:layout_marginBottom="16dp" />
-
                     <ProgressBar
                         android:id="@+id/progress_milestone"
                         android:layout_width="match_parent"
                         android:layout_height="8dp"
-                        android:progress="70"
+                        android:progress="0"
                         android:max="100"
                         style="?android:attr/progressBarStyleHorizontal"
                         android:progressDrawable="@drawable/progress_bar_teal_rounded"
+                        android:layout_marginTop="16dp"
                         android:layout_marginBottom="12dp" />
 
                     <TextView
                         android:id="@+id/tv_milestone_description"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Faltan 8 días para desbloquear +500 puntos 🎁"
+                        android:text="Completa tu primera meta para comenzar tu racha 🚀"
                         android:textColor="@color/text_secondary"
                         android:textSize="13sp"
                         android:lineSpacingExtra="2dp" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- ===== NUEVOS CARDVIEWS DESPLEGABLES ===== -->
-
-            <!-- CardView del Calendario (Historial) -->
+            <!-- CARDVIEW DEL CALENDARIO (HISTORIAL) -->
             <androidx.cardview.widget.CardView
                 android:id="@+id/card_calendar_menu"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:cardCornerRadius="16dp"
-                app:cardElevation="4dp"
+                app:cardElevation="6dp"
                 app:cardBackgroundColor="@color/white"
                 android:layout_marginBottom="16dp"
                 android:visibility="gone">
@@ -338,6 +330,7 @@
                     android:orientation="vertical"
                     android:padding="20dp">
 
+                    <!-- Header del calendario -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -356,7 +349,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Historial de semana"
+                            android:text="Historial de la Semana"
                             android:textColor="@color/text_primary"
                             android:textSize="16sp"
                             android:textStyle="bold" />
@@ -370,159 +363,64 @@
                             android:padding="4dp" />
                     </LinearLayout>
 
-                    <!-- Grid simple del calendario (últimos 7 días como ejemplo) -->
+                    <!-- Contenedor dinámico para el historial semanal -->
+                    <LinearLayout
+                        android:id="@+id/weekly_history_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <!-- El contenido se agregará dinámicamente desde el código -->
+
+                    </LinearLayout>
+
+                    <!-- Leyenda -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center"
-                        android:layout_marginBottom="8dp">
+                        android:layout_marginTop="16dp">
+
+                        <View
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:background="@drawable/ic_calendar"
+                            android:backgroundTint="@color/calendar_racha"
+                            android:layout_marginEnd="4dp" />
 
                         <TextView
-                            android:layout_width="0dp"
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="L"
-                            android:gravity="center"
-                            android:textColor="@color/text_secondary"
+                            android:text="Completado"
                             android:textSize="12sp"
-                            android:textStyle="bold" />
+                            android:textColor="@color/text_secondary"
+                            android:layout_marginEnd="16dp" />
+
+                        <View
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:background="@drawable/ic_calendar"
+                            android:backgroundTint="@color/calendar_no_racha"
+                            android:layout_marginEnd="4dp" />
 
                         <TextView
-                            android:layout_width="0dp"
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="M"
-                            android:gravity="center"
-                            android:textColor="@color/text_secondary"
+                            android:text="Pendiente"
                             android:textSize="12sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="M"
-                            android:gravity="center"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="J"
-                            android:gravity="center"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="V"
-                            android:gravity="center"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="S"
-                            android:gravity="center"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="D"
-                            android:gravity="center"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp"
-                            android:textStyle="bold" />
+                            android:textColor="@color/text_secondary" />
                     </LinearLayout>
-
-                    <!-- Fila de días -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center">
-
-                        <View
-                            android:layout_width="0dp"
-                            android:layout_height="32dp"
-                            android:layout_weight="1"
-                            android:layout_margin="2dp"
-                            android:background="@drawable/ic_calendar"
-                            android:backgroundTint="@color/calendar_racha" />
-
-                        <View
-                            android:layout_width="0dp"
-                            android:layout_height="32dp"
-                            android:layout_weight="1"
-                            android:layout_margin="2dp"
-                            android:background="@drawable/ic_calendar"
-                            android:backgroundTint="@color/calendar_racha" />
-
-                        <View
-                            android:layout_width="0dp"
-                            android:layout_height="32dp"
-                            android:layout_weight="1"
-                            android:layout_margin="2dp"
-                            android:background="@drawable/ic_calendar"
-                            android:backgroundTint="@color/calendar_racha" />
-
-                        <View
-                            android:layout_width="0dp"
-                            android:layout_height="32dp"
-                            android:layout_weight="1"
-                            android:layout_margin="2dp"
-                            android:background="@drawable/ic_calendar"
-                            android:backgroundTint="@color/calendar_racha" />
-
-                        <View
-                            android:layout_width="0dp"
-                            android:layout_height="32dp"
-                            android:layout_weight="1"
-                            android:layout_margin="2dp"
-                            android:background="@drawable/ic_calendar"
-                            android:backgroundTint="@color/calendar_racha" />
-
-                        <View
-                            android:layout_width="0dp"
-                            android:layout_height="32dp"
-                            android:layout_weight="1"
-                            android:layout_margin="2dp"
-                            android:background="@drawable/ic_calendar"
-                            android:backgroundTint="@color/calendar_no_racha" />
-
-                        <View
-                            android:layout_width="0dp"
-                            android:layout_height="32dp"
-                            android:layout_weight="1"
-                            android:layout_margin="2dp"
-                            android:background="@drawable/ic_calendar"
-                            android:backgroundTint="@color/calendar_racha" />
-                    </LinearLayout>
-
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- CardView de Recompensas (Regalo) -->
+            <!-- CARDVIEW DE RECOMPENSAS (REGALO) -->
             <androidx.cardview.widget.CardView
                 android:id="@+id/card_gift_menu"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:cardCornerRadius="16dp"
-                app:cardElevation="4dp"
+                app:cardElevation="6dp"
                 app:cardBackgroundColor="@color/white"
                 android:layout_marginBottom="16dp"
                 android:visibility="gone">
@@ -533,6 +431,7 @@
                     android:orientation="vertical"
                     android:padding="20dp">
 
+                    <!-- Header de recompensas -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -679,7 +578,8 @@
                             android:gravity="center_vertical"
                             android:background="@drawable/progress_bar_teal_rounded"
                             android:backgroundTint="@color/background_light"
-                            android:padding="12dp">
+                            android:padding="12dp"
+                            android:layout_marginBottom="8dp">
 
                             <TextView
                                 android:layout_width="wrap_content"
@@ -719,13 +619,60 @@
                                 android:textStyle="bold"
                                 android:gravity="center" />
                         </LinearLayout>
+
+                        <!-- Hito Maestro -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:background="@drawable/progress_bar_teal_rounded"
+                            android:backgroundTint="@color/background_light"
+                            android:padding="12dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="🌟"
+                                android:textSize="16sp"
+                                android:layout_marginEnd="8dp" />
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Hito Maestro"
+                                    android:textColor="@color/text_primary"
+                                    android:textSize="14sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="60+ días consecutivos"
+                                    android:textColor="@color/text_secondary"
+                                    android:textSize="12sp" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="+1000\npuntos"
+                                android:textColor="@color/bt_main"
+                                android:textSize="12sp"
+                                android:textStyle="bold"
+                                android:gravity="center" />
+                        </LinearLayout>
                     </LinearLayout>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- ===== FIN DE CARDVIEWS DESPLEGABLES ===== -->
-
-            <!-- Motivación -->
+            <!-- Sección de Motivación -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -736,6 +683,7 @@
                 android:layout_marginBottom="16dp"
                 android:layout_marginStart="4dp" />
 
+            <!-- Mensaje motivacional -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -763,19 +711,21 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="¡Impresionante racha! Tu disciplina inspira."
+                        android:text="¡Cada día cuenta! Sigue construyendo tu racha 🌱"
                         android:textColor="@android:color/white"
                         android:textSize="15sp"
                         android:lineSpacingExtra="2dp" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
+            <!-- Consejo diario -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="4dp"
-                android:layout_marginBottom="24dp">
+                android:layout_marginBottom="24dp"
+                app:cardBackgroundColor="@color/white">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -796,7 +746,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Completa tu meta diaria para mantener tu racha activa."
+                        android:text="Completa tu meta diaria antes de las 6 PM para mejores resultados 🕕"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:lineSpacingExtra="2dp" />

@@ -10,18 +10,23 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import android.widget.Toast
 import androidx.cardview.widget.CardView
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import com.example.fittrack.R
 import com.example.fittrack.View.ui.activities.ContentActivity
 import com.example.fittrack.ViewModel.RachaDiariaViewModel
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.firebase.auth.FirebaseAuth
 
 class RachaDiariaFragment : Fragment() {
 
     private lateinit var viewModel: RachaDiariaViewModel
+    private lateinit var auth: FirebaseAuth
 
     // Views principales
     private var tvStreakNumber: TextView? = null
@@ -42,13 +47,18 @@ class RachaDiariaFragment : Fragment() {
     private var ivCalendar: ImageView? = null
     private var ivGift: ImageView? = null
 
-    // ✅ NUEVOS CARDVIEWS DESPLEGABLES
+    // CardViews desplegables
     private var cardCalendarMenu: CardView? = null
     private var cardGiftMenu: CardView? = null
     private var ivCloseCalendar: ImageView? = null
     private var ivCloseGift: ImageView? = null
+    private val _errorMessage = MutableLiveData<String>()
+    val errorMessage: LiveData<String> get() = _errorMessage
 
-    // Estado de visibilidad de los cards
+    // Contenedores para historial semanal
+    private var weeklyHistoryContainer: LinearLayout? = null
+
+    // Estado de visibilidad
     private var isCalendarMenuVisible = false
     private var isGiftMenuVisible = false
 
@@ -77,7 +87,10 @@ class RachaDiariaFragment : Fragment() {
         try {
             Log.d(TAG, "=== CONFIGURANDO VISTAS ===")
 
-            // ✅ OCULTAR ELEMENTOS DE NAVEGACIÓN DEL CONTENTACTIVITY
+            // Inicializar Firebase Auth
+            auth = FirebaseAuth.getInstance()
+
+            // Ocultar elementos de navegación del ContentActivity
             hideContentActivityNavigation()
 
             initializeViewModel()
@@ -127,15 +140,16 @@ class RachaDiariaFragment : Fragment() {
             ivCalendar = view.findViewById(R.id.iv_calendar)
             ivGift = view.findViewById(R.id.iv_gift)
 
-            // ✅ NUEVOS CARDVIEWS DESPLEGABLES
+            // CardViews desplegables
             cardCalendarMenu = view.findViewById(R.id.card_calendar_menu)
             cardGiftMenu = view.findViewById(R.id.card_gift_menu)
             ivCloseCalendar = view.findViewById(R.id.iv_close_calendar)
             ivCloseGift = view.findViewById(R.id.iv_close_gift)
 
+            // Contenedor para historial semanal (dentro del card del calendario)
+            weeklyHistoryContainer = cardCalendarMenu?.findViewById(R.id.weekly_history_container)
+
             Log.d(TAG, "Vistas inicializadas correctamente")
-            Log.d(TAG, "CardCalendarMenu encontrado: ${cardCalendarMenu != null}")
-            Log.d(TAG, "CardGiftMenu encontrado: ${cardGiftMenu != null}")
         } catch (e: Exception) {
             Log.e(TAG, "Error al inicializar vistas: ${e.message}", e)
         }
@@ -143,22 +157,18 @@ class RachaDiariaFragment : Fragment() {
 
     private fun setupHeader() {
         try {
-            Log.d(TAG, "BackArrow encontrado: ${ivBackArrow != null}")
-            Log.d(TAG, "TitleView encontrado: ${tvCardTitle != null}")
-
             tvCardTitle?.text = "Racha Diaria"
 
             ivBackArrow?.setOnClickListener {
                 Log.d(TAG, "Click en flecha detectado!")
                 try {
                     findNavController().popBackStack()
-                    Log.d(TAG, "PopBackStack ejecutado")
                 } catch (e: Exception) {
                     Log.e(TAG, "Error en popBackStack: ${e.message}", e)
                 }
             }
 
-            Log.d(TAG, "Header configurado directamente")
+            Log.d(TAG, "Header configurado")
 
         } catch (e: Exception) {
             Log.e(TAG, "Error al configurar header: ${e.message}", e)
@@ -167,19 +177,19 @@ class RachaDiariaFragment : Fragment() {
 
     private fun setupClickListeners() {
         try {
-            // ✅ CLICK EN ÍCONO DE CALENDARIO
+            // Click en ícono de calendario
             ivCalendar?.setOnClickListener {
                 Log.d(TAG, "Click en calendario")
                 toggleCalendarMenu()
             }
 
-            // ✅ CLICK EN ÍCONO DE REGALO
+            // Click en ícono de regalo
             ivGift?.setOnClickListener {
                 Log.d(TAG, "Click en regalo")
                 toggleGiftMenu()
             }
 
-            // ✅ BOTONES DE CERRAR DENTRO DE LOS CARDS
+            // Botones de cerrar dentro de los cards
             ivCloseCalendar?.setOnClickListener {
                 Log.d(TAG, "Click en cerrar calendario")
                 hideCalendarMenu()
@@ -190,137 +200,11 @@ class RachaDiariaFragment : Fragment() {
                 hideGiftMenu()
             }
 
-            // Click en la card principal para incrementar racha (solo para testing)
-            view?.findViewById<androidx.cardview.widget.CardView>(R.id.cv_main_streak)?.setOnClickListener {
-                Log.d(TAG, "Click en card principal - incrementando racha")
-                viewModel.incrementStreak()
-                viewModel.updateMilestoneProgress()
-            }
+            // REMOVIDO: Click en la card principal para testing
+            // Ya no necesitamos el click manual para cargar datos
 
         } catch (e: Exception) {
             Log.e(TAG, "Error al configurar click listeners: ${e.message}", e)
-        }
-    }
-
-    // ✅ FUNCIÓN PARA ALTERNAR LA VISIBILIDAD DEL MENÚ DEL CALENDARIO
-    private fun toggleCalendarMenu() {
-        try {
-            if (isCalendarMenuVisible) {
-                hideCalendarMenu()
-            } else {
-                showCalendarMenu()
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error al alternar menú de calendario: ${e.message}", e)
-        }
-    }
-
-    // ✅ FUNCIÓN PARA ALTERNAR LA VISIBILIDAD DEL MENÚ DE REGALOS
-    private fun toggleGiftMenu() {
-        try {
-            if (isGiftMenuVisible) {
-                hideGiftMenu()
-            } else {
-                showGiftMenu()
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error al alternar menú de regalos: ${e.message}", e)
-        }
-    }
-
-    // ✅ MOSTRAR MENÚ DEL CALENDARIO CON ANIMACIÓN
-    private fun showCalendarMenu() {
-        try {
-            cardCalendarMenu?.let { card ->
-                Log.d(TAG, "Mostrando menú del calendario")
-
-                // Hacer visible el card
-                card.visibility = View.VISIBLE
-                card.alpha = 0f
-
-                // Animación de fade in
-                ObjectAnimator.ofFloat(card, "alpha", 0f, 1f).apply {
-                    duration = ANIMATION_DURATION
-                    start()
-                }
-
-                isCalendarMenuVisible = true
-                Log.d(TAG, "Menú del calendario mostrado")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error al mostrar menú del calendario: ${e.message}", e)
-        }
-    }
-
-    // ✅ OCULTAR MENÚ DEL CALENDARIO CON ANIMACIÓN
-    private fun hideCalendarMenu() {
-        try {
-            cardCalendarMenu?.let { card ->
-                Log.d(TAG, "Ocultando menú del calendario")
-
-                // Animación de fade out
-                ObjectAnimator.ofFloat(card, "alpha", 1f, 0f).apply {
-                    duration = ANIMATION_DURATION
-                    start()
-                }.addListener(object : android.animation.AnimatorListenerAdapter() {
-                    override fun onAnimationEnd(animation: android.animation.Animator) {
-                        card.visibility = View.GONE
-                    }
-                })
-
-                isCalendarMenuVisible = false
-                Log.d(TAG, "Menú del calendario ocultado")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error al ocultar menú del calendario: ${e.message}", e)
-        }
-    }
-
-    // ✅ MOSTRAR MENÚ DE REGALOS CON ANIMACIÓN
-    private fun showGiftMenu() {
-        try {
-            cardGiftMenu?.let { card ->
-                Log.d(TAG, "Mostrando menú de regalos")
-
-                // Hacer visible el card
-                card.visibility = View.VISIBLE
-                card.alpha = 0f
-
-                // Animación de fade in
-                ObjectAnimator.ofFloat(card, "alpha", 0f, 1f).apply {
-                    duration = ANIMATION_DURATION
-                    start()
-                }
-
-                isGiftMenuVisible = true
-                Log.d(TAG, "Menú de regalos mostrado")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error al mostrar menú de regalos: ${e.message}", e)
-        }
-    }
-
-    // ✅ OCULTAR MENÚ DE REGALOS CON ANIMACIÓN
-    private fun hideGiftMenu() {
-        try {
-            cardGiftMenu?.let { card ->
-                Log.d(TAG, "Ocultando menú de regalos")
-
-                // Animación de fade out
-                ObjectAnimator.ofFloat(card, "alpha", 1f, 0f).apply {
-                    duration = ANIMATION_DURATION
-                    start()
-                }.addListener(object : android.animation.AnimatorListenerAdapter() {
-                    override fun onAnimationEnd(animation: android.animation.Animator) {
-                        card.visibility = View.GONE
-                    }
-                })
-
-                isGiftMenuVisible = false
-                Log.d(TAG, "Menú de regalos ocultado")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error al ocultar menú de regalos: ${e.message}", e)
         }
     }
 
@@ -338,10 +222,12 @@ class RachaDiariaFragment : Fragment() {
 
             viewModel.bestStreak.observe(viewLifecycleOwner) { bestStreak ->
                 tvBestStreakValue?.text = bestStreak.toString()
+                Log.d(TAG, "Mejor racha: $bestStreak")
             }
 
             viewModel.totalPoints.observe(viewLifecycleOwner) { points ->
                 tvTotalPointsValue?.text = points.toString()
+                Log.d(TAG, "Puntos totales: $points")
             }
 
             viewModel.nextMilestone.observe(viewLifecycleOwner) { milestone ->
@@ -354,22 +240,33 @@ class RachaDiariaFragment : Fragment() {
 
             viewModel.motivationalMessage.observe(viewLifecycleOwner) { message ->
                 tvMotivationalMessage?.text = message
+                Log.d(TAG, "Mensaje motivacional actualizado")
             }
 
             viewModel.dailyTip.observe(viewLifecycleOwner) { tip ->
                 tvDailyTip?.text = tip
+                Log.d(TAG, "Consejo diario actualizado")
+            }
+
+            viewModel.weeklyHistory.observe(viewLifecycleOwner) { history ->
+                updateWeeklyHistoryUI(history)
+                Log.d(TAG, "Historial semanal actualizado")
             }
 
             viewModel.errorMessage.observe(viewLifecycleOwner) { error ->
                 if (!error.isNullOrEmpty()) {
                     Log.e(TAG, "Error del ViewModel: $error")
-                    // Aquí puedes mostrar un Toast o Snackbar
+                    Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+                    viewModel.clearError()
                 }
             }
 
             viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
                 // Aquí podrías mostrar/ocultar un indicador de carga
                 Log.d(TAG, "Estado de carga: $isLoading")
+                if (!isLoading) {
+                    Log.d(TAG, "Carga completada - datos disponibles en UI")
+                }
             }
 
         } catch (e: Exception) {
@@ -379,25 +276,251 @@ class RachaDiariaFragment : Fragment() {
 
     private fun loadData() {
         try {
-            val userName = arguments?.getString("userName")
-            Log.d(TAG, "Cargando datos para usuario: $userName")
+            val currentUser = auth.currentUser
+            if (currentUser != null) {
+                val userId = currentUser.uid
+                Log.d(TAG, "=== INICIANDO CARGA DE DATOS ===")
+                Log.d(TAG, "Cargando datos para usuario: $userId")
 
-            viewModel.loadStreakData(userName)
+                // Cargar datos inmediatamente al entrar al fragment
+                viewModel.loadStreakData(userId)
+
+                Log.d(TAG, "Solicitud de carga enviada al ViewModel")
+            } else {
+                Log.e(TAG, "Usuario no autenticado")
+                _errorMessage.value = "Error: Usuario no autenticado"
+                Toast.makeText(context, "Error: Usuario no autenticado", Toast.LENGTH_SHORT).show()
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error al cargar datos: ${e.message}", e)
+            Toast.makeText(context, "Error al cargar datos de racha", Toast.LENGTH_SHORT).show()
         }
     }
 
-    // ✅ OCULTAR NAVEGACIÓN DEL CONTENTACTIVITY
+    private fun updateWeeklyHistoryUI(history: List<RachaDiariaViewModel.DayStatus>) {
+        try {
+            weeklyHistoryContainer?.let { container ->
+                container.removeAllViews()
+
+                // Crear fila de días de la semana
+                val daysRow = LinearLayout(context).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                }
+
+                val statusRow = LinearLayout(context).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                    setPadding(0, 16, 0, 0)
+                }
+
+                history.forEach { dayStatus ->
+                    // Texto del día
+                    val dayText = TextView(context).apply {
+                        text = dayStatus.dayName.take(1).uppercase()
+                        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                        gravity = android.view.Gravity.CENTER
+                        textSize = 12f
+                        setTextColor(resources.getColor(R.color.text_secondary, null))
+                    }
+                    daysRow.addView(dayText)
+
+                    // Estado visual del día
+                    val statusView = View(context).apply {
+                        layoutParams = LinearLayout.LayoutParams(0, 32.dpToPx(), 1f).apply {
+                            setMargins(4.dpToPx(), 0, 4.dpToPx(), 0)
+                        }
+                        setBackgroundResource(R.drawable.ic_calendar)
+                        backgroundTintList = if (dayStatus.completed) {
+                            resources.getColorStateList(R.color.calendar_racha, null)
+                        } else {
+                            resources.getColorStateList(R.color.calendar_no_racha, null)
+                        }
+                    }
+                    statusRow.addView(statusView)
+                }
+
+                container.addView(daysRow)
+                container.addView(statusRow)
+            }
+
+            Log.d(TAG, "Historial semanal actualizado en UI")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al actualizar historial semanal: ${e.message}", e)
+        }
+    }
+
+    private fun Int.dpToPx(): Int {
+        return (this * resources.displayMetrics.density).toInt()
+    }
+
+
+    // Funciones para alternar menús
+    private fun toggleCalendarMenu() {
+        try {
+            if (isCalendarMenuVisible) {
+                hideCalendarMenu()
+            } else {
+                showCalendarMenu()
+                // Cerrar el otro menú si está abierto
+                if (isGiftMenuVisible) {
+                    hideGiftMenu()
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al alternar menú de calendario: ${e.message}", e)
+        }
+    }
+
+    private fun toggleGiftMenu() {
+        try {
+            if (isGiftMenuVisible) {
+                hideGiftMenu()
+            } else {
+                showGiftMenu()
+                // Cerrar el otro menú si está abierto
+                if (isCalendarMenuVisible) {
+                    hideCalendarMenu()
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al alternar menú de regalos: ${e.message}", e)
+        }
+    }
+
+    private fun showCalendarMenu() {
+        try {
+            cardCalendarMenu?.let { card ->
+                Log.d(TAG, "Mostrando menú del calendario")
+
+                card.visibility = View.VISIBLE
+                card.alpha = 0f
+
+                // Animación de fade in con escala
+                val fadeIn = ObjectAnimator.ofFloat(card, "alpha", 0f, 1f)
+                val scaleX = ObjectAnimator.ofFloat(card, "scaleX", 0.8f, 1f)
+                val scaleY = ObjectAnimator.ofFloat(card, "scaleY", 0.8f, 1f)
+
+                fadeIn.duration = ANIMATION_DURATION
+                scaleX.duration = ANIMATION_DURATION
+                scaleY.duration = ANIMATION_DURATION
+
+                fadeIn.start()
+                scaleX.start()
+                scaleY.start()
+
+                isCalendarMenuVisible = true
+                Log.d(TAG, "Menú del calendario mostrado")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al mostrar menú del calendario: ${e.message}", e)
+        }
+    }
+
+    private fun hideCalendarMenu() {
+        try {
+            cardCalendarMenu?.let { card ->
+                Log.d(TAG, "Ocultando menú del calendario")
+
+                val fadeOut = ObjectAnimator.ofFloat(card, "alpha", 1f, 0f)
+                val scaleX = ObjectAnimator.ofFloat(card, "scaleX", 1f, 0.8f)
+                val scaleY = ObjectAnimator.ofFloat(card, "scaleY", 1f, 0.8f)
+
+                fadeOut.duration = ANIMATION_DURATION
+                scaleX.duration = ANIMATION_DURATION
+                scaleY.duration = ANIMATION_DURATION
+
+                fadeOut.addListener(object : android.animation.AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: android.animation.Animator) {
+                        card.visibility = View.GONE
+                    }
+                })
+
+                fadeOut.start()
+                scaleX.start()
+                scaleY.start()
+
+                isCalendarMenuVisible = false
+                Log.d(TAG, "Menú del calendario ocultado")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al ocultar menú del calendario: ${e.message}", e)
+        }
+    }
+
+    private fun showGiftMenu() {
+        try {
+            cardGiftMenu?.let { card ->
+                Log.d(TAG, "Mostrando menú de regalos")
+
+                card.visibility = View.VISIBLE
+                card.alpha = 0f
+
+                // Animación de fade in con escala
+                val fadeIn = ObjectAnimator.ofFloat(card, "alpha", 0f, 1f)
+                val scaleX = ObjectAnimator.ofFloat(card, "scaleX", 0.8f, 1f)
+                val scaleY = ObjectAnimator.ofFloat(card, "scaleY", 0.8f, 1f)
+
+                fadeIn.duration = ANIMATION_DURATION
+                scaleX.duration = ANIMATION_DURATION
+                scaleY.duration = ANIMATION_DURATION
+
+                fadeIn.start()
+                scaleX.start()
+                scaleY.start()
+
+                isGiftMenuVisible = true
+                Log.d(TAG, "Menú de regalos mostrado")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al mostrar menú de regalos: ${e.message}", e)
+        }
+    }
+
+    private fun hideGiftMenu() {
+        try {
+            cardGiftMenu?.let { card ->
+                Log.d(TAG, "Ocultando menú de regalos")
+
+                val fadeOut = ObjectAnimator.ofFloat(card, "alpha", 1f, 0f)
+                val scaleX = ObjectAnimator.ofFloat(card, "scaleX", 1f, 0.8f)
+                val scaleY = ObjectAnimator.ofFloat(card, "scaleY", 1f, 0.8f)
+
+                fadeOut.duration = ANIMATION_DURATION
+                scaleX.duration = ANIMATION_DURATION
+                scaleY.duration = ANIMATION_DURATION
+
+                fadeOut.addListener(object : android.animation.AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: android.animation.Animator) {
+                        card.visibility = View.GONE
+                    }
+                })
+
+                fadeOut.start()
+                scaleX.start()
+                scaleY.start()
+
+                isGiftMenuVisible = false
+                Log.d(TAG, "Menú de regalos ocultado")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al ocultar menú de regalos: ${e.message}", e)
+        }
+    }
+
+    // Ocultar navegación del ContentActivity
     private fun hideContentActivityNavigation() {
         try {
             (activity as? ContentActivity)?.let { contentActivity ->
-
-                // Buscar y ocultar el header principal
                 val headerLayout = contentActivity.findViewById<LinearLayout>(R.id.headerLayout)
                 headerLayout?.visibility = View.GONE
 
-                // Buscar y ocultar el bottom navigation
                 val bottomNav = contentActivity.findViewById<BottomNavigationView>(R.id.bottomNavigationMain)
                 bottomNav?.visibility = View.GONE
 
@@ -408,16 +531,13 @@ class RachaDiariaFragment : Fragment() {
         }
     }
 
-    // ✅ MOSTRAR NAVEGACIÓN DEL CONTENTACTIVITY
+    // Mostrar navegación del ContentActivity
     private fun showContentActivityNavigation() {
         try {
             (activity as? ContentActivity)?.let { contentActivity ->
-
-                // Mostrar el header principal
                 val headerLayout = contentActivity.findViewById<LinearLayout>(R.id.headerLayout)
                 headerLayout?.visibility = View.VISIBLE
 
-                // Mostrar el bottom navigation
                 val bottomNav = contentActivity.findViewById<BottomNavigationView>(R.id.bottomNavigationMain)
                 bottomNav?.visibility = View.VISIBLE
 
@@ -434,7 +554,7 @@ class RachaDiariaFragment : Fragment() {
         try {
             Log.d(TAG, "RachaDiariaFragment onDestroyView")
 
-            // ✅ RESTAURAR NAVEGACIÓN AL SALIR DEL FRAGMENT
+            // Restaurar navegación al salir del fragment
             showContentActivityNavigation()
 
             // Limpiar referencias
@@ -453,12 +573,11 @@ class RachaDiariaFragment : Fragment() {
             tvCardTitle = null
             ivCalendar = null
             ivGift = null
-
-            // ✅ LIMPIAR REFERENCIAS DE LOS NUEVOS CARDVIEWS
             cardCalendarMenu = null
             cardGiftMenu = null
             ivCloseCalendar = null
             ivCloseGift = null
+            weeklyHistoryContainer = null
 
         } catch (e: Exception) {
             Log.e(TAG, "Error en onDestroyView: ${e.message}", e)
@@ -472,6 +591,9 @@ class RachaDiariaFragment : Fragment() {
         try {
             // Asegurar que la navegación esté oculta al regresar
             hideContentActivityNavigation()
+
+            // Refrescar datos al volver al fragment
+            viewModel.refreshData()
         } catch (e: Exception) {
             Log.e(TAG, "Error en onResume: ${e.message}", e)
         }
