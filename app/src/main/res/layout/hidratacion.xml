@@ -73,7 +73,7 @@
 
             </androidx.cardview.widget.CardView>
 
-            <!-- RecyclerView para recordatorios dinámicos -->
+            <!-- RecyclerView para recordatorios dinámicoos -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rv_hydration_reminders"
                 android:layout_width="match_parent"

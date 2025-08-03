@@ -12,8 +12,6 @@ import android.widget.Toast
 import com.example.fittrack.ViewModel.HidratacionViewModel
 import com.google.android.material.button.MaterialButton
 
-// Actualiza tu HydrationRemindersAdapter con estos cambios:
-
 class HydrationRemindersAdapter(
     private var reminders: List<HidratacionViewModel.RecordatorioHidratacion> = emptyList(),
     private val onReminderCompleted: (Int) -> Unit,

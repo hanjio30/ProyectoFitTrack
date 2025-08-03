@@ -160,7 +160,7 @@ class HidratacionFragment : Fragment() {
     private fun updateWaterGlassImage(level: Int) {
         try {
             ivWaterGlass?.let { imageView ->
-                // Ejemplo de cómo cambiar la imagen según el nivel
+                // Ejemplo de cómo cambiar la imagen según el niveel
                 when {
                     level >= 100 -> imageView.setImageResource(R.drawable.ic_water_glass_full)
                     level >= 75 -> imageView.setImageResource(R.drawable.ic_water_glass_three_quarter)

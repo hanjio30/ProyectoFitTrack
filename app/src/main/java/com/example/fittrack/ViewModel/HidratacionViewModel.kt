@@ -508,7 +508,7 @@ class HidratacionViewModel : ViewModel() {
         }
     }
 
-    // Función para verificar si un recordatorio debe estar habilitado
+    // Función para verificar si un recordatorioo debe estar habilitado
     fun isReminderEnabled(reminder: RecordatorioHidratacion): Boolean {
         // Si ya está completado, no debe estar habilitado
         if (reminder.completado) {
