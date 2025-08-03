@@ -113,14 +113,14 @@ class HydrationRemindersAdapter(
         )
 
         // Botón deshabilitado
-        holder.drinkButton.text = "✓ Completado"
+        holder.drinkButton.text = "Completado"
         holder.drinkButton.isEnabled = false
         holder.drinkButton.backgroundTintList = ContextCompat.getColorStateList(
             holder.itemView.context,
-            android.R.color.darker_gray
+            R.color.completed_green
         )
         holder.drinkButton.setTextColor(
-            ContextCompat.getColor(holder.itemView.context, R.color.text_secondary)
+            ContextCompat.getColor(holder.itemView.context, R.color.white)
         )
 
         // Reducir opacidad del texto

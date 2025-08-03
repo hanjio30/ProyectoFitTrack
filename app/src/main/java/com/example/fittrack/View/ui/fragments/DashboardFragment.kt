@@ -143,7 +143,6 @@ class DashboardFragment : Fragment() {
         }
     }
 
-    // ✅ CONFIGURAR CLICKS CON NAVIGATION COMPONENT
     private fun setupClickListeners() {
         try {
             Log.d(TAG, "Configurando click listeners")
@@ -154,13 +153,13 @@ class DashboardFragment : Fragment() {
                 navigateToDistanceFragment()
             }
 
-            // Click listener para el card de distancia
+            // Click listener para el card de hidratación
             cardHidratacion?.setOnClickListener {
                 Log.d(TAG, "Click en card de hidratacion - Navegando...")
                 navigateToHidratacionFragment()
             }
 
-            // Click listener para el card de distancia
+            // Click listener para el card de meta diaria
             card_MetaDiaria?.setOnClickListener {
                 Log.d(TAG, "Click en card de Meta Diaria - Navegando...")
                 navigateToMetaDiariaFragment()
@@ -172,30 +171,22 @@ class DashboardFragment : Fragment() {
                 navigateToRachaDiariaFragment()
             }
 
-
-
         } catch (e: Exception) {
             Log.e(TAG, "Error al configurar click listeners: ${e.message}", e)
         }
     }
 
-    // ✅ NAVEGACIÓN - DISTANCIA RECORRIDA  CON NAVIGATION COMPONENT
     private fun navigateToDistanceFragment() {
         try {
             Log.d(TAG, "Click en card de distancia - Navegando...")
-
-            // Usar Navigation Component para navegar al fragment de distancia
             findNavController().navigate(R.id.action_dashboard_to_distance)
-
             Log.d(TAG, "Navegación iniciada a DistRecorridaFragment")
-
         } catch (e: Exception) {
             Log.e(TAG, "Error al navegar: ${e.message}", e)
             showError("Error al abrir estadísticas de distancia")
         }
     }
 
-    // NAVEGACIÓN - HIDRATACIÓN
     private fun navigateToHidratacionFragment() {
         try {
             Log.d(TAG, "Click en card de hidratación - Navegando...")
@@ -207,7 +198,6 @@ class DashboardFragment : Fragment() {
         }
     }
 
-    // NAVEGACIÓN - HIDRATACIÓN
     private fun navigateToMetaDiariaFragment() {
         try {
             Log.d(TAG, "Click en card de Meta Diaria - Navegando...")
@@ -219,7 +209,6 @@ class DashboardFragment : Fragment() {
         }
     }
 
-    // NAVEGACIÓN - RACHA DIARIA
     private fun navigateToRachaDiariaFragment() {
         try {
             Log.d(TAG, "Click en card de Racha Diaria - Navegando...")
@@ -231,7 +220,6 @@ class DashboardFragment : Fragment() {
         }
     }
 
-    // ✅ FUNCIÓN PARA NAVEGAR CON DATOS (ejemplo)
     private fun navigateToDistanceWithData(userName: String) {
         try {
             // Si quieres pasar datos, usa Bundle
@@ -274,7 +262,9 @@ class DashboardFragment : Fragment() {
                 tvStepsValue?.text = value
             }
 
+            // ✅ OBSERVER ESPECIAL PARA HIDRATACIÓN CON LOG
             dashboardViewModel.hydrationValue.observe(viewLifecycleOwner) { value ->
+                Log.d(TAG, "📊 Actualizando hidratación en dashboard: $value")
                 tvHydrationValue?.text = value
             }
 
@@ -313,11 +303,16 @@ class DashboardFragment : Fragment() {
         try {
             if (isLoading) {
                 Log.d(TAG, "Cargando datos...")
-                // Aquí puedes mostrar un ProgressBar o deshabilitar cards
                 cardDistance?.isEnabled = false
+                cardHidratacion?.isEnabled = false
+                card_MetaDiaria?.isEnabled = false
+                cardRachaDiaria?.isEnabled = false
             } else {
                 Log.d(TAG, "Carga completada")
                 cardDistance?.isEnabled = true
+                cardHidratacion?.isEnabled = true
+                card_MetaDiaria?.isEnabled = true
+                cardRachaDiaria?.isEnabled = true
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error al manejar estado de carga: ${e.message}", e)
@@ -358,12 +353,26 @@ class DashboardFragment : Fragment() {
         }
     }
 
+    // ✅ NUEVA FUNCIÓN PARA ACTUALIZAR SOLO HIDRATACIÓN
+    fun updateHydration(liters: Double) {
+        try {
+            Log.d(TAG, "📊 Actualizando hidratación desde fragment: ${liters}L")
+            if (::dashboardViewModel.isInitialized) {
+                dashboardViewModel.updateHydrationValue(liters)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al actualizar hidratación: ${e.message}", e)
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         Log.d(TAG, "DashboardFragment onResume")
 
         try {
+            // ✅ REFRESCAR DATOS AL REGRESAR AL DASHBOARD
             if (::dashboardViewModel.isInitialized) {
+                Log.d(TAG, "🔄 Refrescando datos del dashboard...")
                 dashboardViewModel.refreshData()
             }
         } catch (e: Exception) {

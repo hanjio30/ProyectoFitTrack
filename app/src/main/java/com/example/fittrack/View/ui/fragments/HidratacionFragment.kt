@@ -74,6 +74,7 @@ class HidratacionFragment : Fragment() {
             setupHeader()
             setupRecyclerView()
             setupObservers()
+            viewModel.diagnosticFirestorePermissions()
             loadData()
 
             Log.d(TAG, "=== HidratacionFragment CONFIGURADO EXITOSAMENTE ===")

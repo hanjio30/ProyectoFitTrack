@@ -11,6 +11,7 @@ import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -20,6 +21,7 @@ class DashboardViewModel : ViewModel() {
     // Firebase
     private val firebaseAuth: FirebaseAuth = FirebaseAuth.getInstance()
     private val databaseReference: DatabaseReference = FirebaseDatabase.getInstance().getReference()
+    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance() // ✅ AGREGAR FIRESTORE
 
     // LiveData para la UI
     private val _userName = MutableLiveData<String>()
@@ -86,10 +88,8 @@ class DashboardViewModel : ViewModel() {
             _isLoading.value = true
 
             if (!userName.isNullOrEmpty()) {
-                // Si se pasa un nombre, usarlo directamente
                 setupUserData(userName)
             } else {
-                // Si no, obtener desde Firebase
                 loadUserData()
             }
 
@@ -182,29 +182,35 @@ class DashboardViewModel : ViewModel() {
                 if (currentUser != null) {
                     Log.d(TAG, "Cargando estadísticas del usuario")
 
-                    // Cargar estadísticas desde Firebase
-                    databaseReference.child("userStats").child(currentUser.uid)
-                        .addListenerForSingleValueEvent(object : ValueEventListener {
-                            override fun onDataChange(snapshot: DataSnapshot) {
-                                try {
-                                    if (snapshot.exists()) {
-                                        val userStats = snapshot.getValue(UserStats::class.java)
-                                        setupStatsData(userStats ?: UserStats())
-                                    } else {
-                                        Log.d(TAG, "No hay estadísticas, usando datos de ejemplo")
-                                        setupDefaultStats()
-                                    }
-                                } catch (e: Exception) {
-                                    Log.e(TAG, "Error al procesar estadísticas: ${e.message}", e)
-                                    setupDefaultStats()
-                                }
-                            }
+                    // ✅ PRIMERO CARGAR HIDRATACIÓN DESDE FIRESTORE
+                    loadHydrationFromFirestore(currentUser.uid) { hydrationLiters ->
 
-                            override fun onCancelled(error: DatabaseError) {
-                                Log.e(TAG, "Error al cargar estadísticas: ${error.message}")
-                                setupDefaultStats()
-                            }
-                        })
+                        // Luego cargar el resto de estadísticas desde Realtime Database
+                        databaseReference.child("userStats").child(currentUser.uid)
+                            .addListenerForSingleValueEvent(object : ValueEventListener {
+                                override fun onDataChange(snapshot: DataSnapshot) {
+                                    try {
+                                        if (snapshot.exists()) {
+                                            val userStats = snapshot.getValue(UserStats::class.java) ?: UserStats()
+                                            // ✅ USAR LA HIDRATACIÓN REAL DE FIRESTORE
+                                            val updatedStats = userStats.copy(hydrationLiters = hydrationLiters)
+                                            setupStatsData(updatedStats)
+                                        } else {
+                                            Log.d(TAG, "No hay estadísticas, usando datos de ejemplo")
+                                            setupDefaultStats(hydrationLiters)
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Error al procesar estadísticas: ${e.message}", e)
+                                        setupDefaultStats(hydrationLiters)
+                                    }
+                                }
+
+                                override fun onCancelled(error: DatabaseError) {
+                                    Log.e(TAG, "Error al cargar estadísticas: ${error.message}")
+                                    setupDefaultStats(hydrationLiters)
+                                }
+                            })
+                    }
                 } else {
                     setupDefaultStats()
                 }
@@ -215,37 +221,72 @@ class DashboardViewModel : ViewModel() {
         }
     }
 
+    // ✅ NUEVA FUNCIÓN PARA CARGAR HIDRATACIÓN DESDE FIRESTORE
+    private fun loadHydrationFromFirestore(uid: String, callback: (Double) -> Unit) {
+        try {
+            val fecha = SimpleDateFormat("yyyy_MM_dd", Locale.getDefault()).format(Date())
+            Log.d(TAG, "=== CARGANDO HIDRATACIÓN DESDE FIRESTORE ===")
+            Log.d(TAG, "UID: $uid, Fecha: $fecha")
+
+            firestore.collection("users").document(uid)
+                .collection("hidratacion").document(fecha)
+                .get()
+                .addOnSuccessListener { document ->
+                    try {
+                        if (document.exists()) {
+                            val litros = document.getDouble("litros") ?: 0.0
+                            Log.d(TAG, "✓ Hidratación encontrada en Firestore: ${litros}L")
+                            callback(litros)
+                        } else {
+                            Log.d(TAG, "No hay datos de hidratación para hoy, usando 0.0L")
+                            callback(0.0)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error al procesar datos de hidratación: ${e.message}", e)
+                        callback(0.0)
+                    }
+                }
+                .addOnFailureListener { exception ->
+                    Log.e(TAG, "✗ Error al cargar hidratación desde Firestore: ${exception.message}", exception)
+                    callback(0.0)
+                }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error en loadHydrationFromFirestore: ${e.message}", e)
+            callback(0.0)
+        }
+    }
+
     private fun setupStatsData(userStats: UserStats) {
         try {
             _caloriesValue.value = "${userStats.calories} kcal"
             _activityValue.value = "${userStats.activityMinutes} min"
             _stepsValue.value = userStats.steps.toString()
-            _hydrationValue.value = "${userStats.hydrationLiters} lit."
+            _hydrationValue.value = "${userStats.hydrationLiters} lit."  // ✅ AHORA MOSTRARÁ EL VALOR REAL
             _streakValue.value = "${userStats.streak} días"
             _distanceValue.value = "${userStats.distanceKm} km"
             _goalValue.value = "${userStats.goalProgress}%"
 
             _isLoading.value = false
-            Log.d(TAG, "Estadísticas configuradas desde Firebase")
+            Log.d(TAG, "Estadísticas configuradas - Hidratación: ${userStats.hydrationLiters}L")
         } catch (e: Exception) {
             Log.e(TAG, "Error en setupStatsData: ${e.message}", e)
             setupDefaultStats()
         }
     }
 
-    private fun setupDefaultStats() {
+    // ✅ ACTUALIZAR FUNCIÓN PARA ACEPTAR HIDRATACIÓN REAL
+    private fun setupDefaultStats(realHydration: Double = 0.0) {
         try {
-            // Datos de ejemplo más realistas
             _caloriesValue.value = "25 kcal"
             _activityValue.value = "45 min"
             _stepsValue.value = "58"
-            _hydrationValue.value = "1.2 lit."
+            _hydrationValue.value = "${realHydration} lit."  // ✅ USAR HIDRATACIÓN REAL
             _streakValue.value = "20 días"
             _distanceValue.value = "1.5 km"
             _goalValue.value = "75%"
 
             _isLoading.value = false
-            Log.d(TAG, "Datos de ejemplo configurados")
+            Log.d(TAG, "Datos de ejemplo configurados con hidratación real: ${realHydration}L")
         } catch (e: Exception) {
             Log.e(TAG, "Error en setupDefaultStats: ${e.message}", e)
             handleError("Error al configurar estadísticas")
@@ -259,6 +300,16 @@ class DashboardViewModel : ViewModel() {
         } catch (e: Exception) {
             Log.e(TAG, "Error al refrescar datos: ${e.message}", e)
             handleError("Error al refrescar datos")
+        }
+    }
+
+    // ✅ NUEVA FUNCIÓN PARA ACTUALIZAR SOLO LA HIDRATACIÓN
+    fun updateHydrationValue(liters: Double) {
+        try {
+            Log.d(TAG, "Actualizando valor de hidratación en dashboard: ${liters}L")
+            _hydrationValue.value = "${liters} lit."
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al actualizar hidratación: ${e.message}", e)
         }
     }
 

@@ -14,6 +14,8 @@
     <color name="teal_700">#FF018786</color>
 
     <color name="gray_light">#CCCCCC</color>
+    <color name="completed_green">#065D5F</color>
+
 
     <color name="card_lavender">#F6F0FD</color>
     <color name="card_blue_light">#E8F5FA</color>

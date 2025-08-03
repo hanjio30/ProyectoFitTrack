@@ -52,7 +52,8 @@ class HidratacionViewModel : ViewModel() {
     val weeklyHistory: LiveData<List<HidratacionSemanal>> = _weeklyHistory
 
     fun loadHydrationData(userName: String?) {
-        Log.d(TAG, "Cargando datos de hidratación para: $userName")
+        Log.d(TAG, "=== INICIANDO CARGA DE DATOS DE HIDRATACIÓN ===")
+        Log.d(TAG, "Usuario: $userName")
 
         val currentUser = auth.currentUser
         if (currentUser == null) {
@@ -66,127 +67,411 @@ class HidratacionViewModel : ViewModel() {
         val fecha = SimpleDateFormat("yyyy_MM_dd", Locale.getDefault()).format(Date())
         _isLoading.value = true
 
-        Log.d(TAG, "Cargando hidratación para UID: $uid, Fecha: $fecha")
+        Log.d(TAG, "Cargando para UID: $uid, Fecha: $fecha")
 
-        // Cargar datos principales de hidratación
+        // PASO 1: Cargar datos principales de hidratación
+        loadMainHydrationData(uid, fecha)
+    }
+
+    private fun loadMainHydrationData(uid: String, fecha: String) {
+        Log.d(TAG, "=== PASO 1: Cargando datos principales ===")
+
         db.collection("users").document(uid).collection("hidratacion").document(fecha)
             .get()
             .addOnSuccessListener { document ->
                 try {
-                    Log.d(TAG, "Respuesta de Firebase recibida. Documento existe: ${document.exists()}")
+                    Log.d(TAG, "Datos principales obtenidos. Documento existe: ${document.exists()}")
 
                     if (document.exists()) {
                         val litros = document.getDouble("litros") ?: 0.0
+
+                        // ✅ ASEGURAR QUE EL VALOR SE MUESTRE CORRECTAMENTE
                         _currentHydration.value = String.format("%.1f L", litros)
                         val porcentaje = ((litros / 2.5) * 100).toInt().coerceAtMost(100)
                         _waterGlassLevel.value = porcentaje
 
-                        Log.d(TAG, "Datos de Firebase cargados exitosamente: ${litros}L (${porcentaje}%)")
+                        Log.d(TAG, "✅ Datos principales cargados: ${litros}L (${porcentaje}%)")
+
+                        // ✅ OBTENER RECORDATORIOS COMPLETADOS DEL DOCUMENTO PRINCIPAL
+                        val completedReminderIds = if (document.contains("recordatoriosCompletados")) {
+                            val completedData = document.get("recordatoriosCompletados") as? List<*> ?: emptyList<Any>()
+                            completedData.mapNotNull { item ->
+                                when (item) {
+                                    is Long -> item.toInt()
+                                    is Int -> item
+                                    is String -> item.toIntOrNull()
+                                    else -> null
+                                }
+                            }.toSet()
+                        } else {
+                            emptySet<Int>()
+                        }
+
+                        Log.d(TAG, "Recordatorios completados desde documento principal: $completedReminderIds")
+
+                        // Cargar datos mock con estados aplicados
+                        loadMockDataWithCompletedStates(completedReminderIds)
+
                     } else {
+                        Log.d(TAG, "No hay datos principales, iniciando en 0")
                         _currentHydration.value = "0.0 L"
                         _waterGlassLevel.value = 0
-                        Log.d(TAG, "No hay datos en Firebase para hoy, iniciando en 0")
+
+                        // Cargar recordatorios de la subcolección
+                        loadCompletedReminders(uid, fecha)
                     }
 
-                    // Cargar recordatorios completados y luego datos mock
-                    loadCompletedReminders(uid, fecha)
-
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error al procesar datos de Firebase: ${e.message}", e)
+                    Log.e(TAG, "Error al procesar datos principales: ${e.message}", e)
                     _errorMessage.value = "Error al procesar datos: ${e.message}"
-                    loadMockDataOnly()
-                    _isLoading.value = false
+                    loadCompletedReminders(uid, fecha)
                 }
             }
             .addOnFailureListener { exception ->
-                Log.e(TAG, "Error de conexión con Firestore: ${exception.message}", exception)
+                Log.e(TAG, "Error al cargar datos principales: ${exception.message}", exception)
                 _errorMessage.value = "Error de conexión: ${exception.message}"
-                loadMockDataOnly()
-                _isLoading.value = false
+                loadCompletedReminders(uid, fecha)
             }
     }
 
-    fun addWaterIntake(amount: Float) {
-        Log.d(TAG, "Agregando ${amount}L de agua")
+    private fun loadCompletedReminders(uid: String, fecha: String) {
+        Log.d(TAG, "=== PASO 2: Cargando recordatorios completados ===")
+        Log.d(TAG, "Ruta: users/$uid/hidratacion/$fecha/recordatorios")
 
+        db.collection("users").document(uid)
+            .collection("hidratacion").document(fecha)
+            .collection("recordatorios")
+            .get()
+            .addOnSuccessListener { querySnapshot ->
+                try {
+                    val completedReminderIds = mutableSetOf<Int>()
+
+                    Log.d(TAG, "QuerySnapshot obtenido. Documentos: ${querySnapshot.size()}")
+
+                    for (document in querySnapshot.documents) {
+                        val reminderId = document.id.toIntOrNull()
+                        val completado = document.getBoolean("completado") ?: false
+
+                        Log.d(TAG, "Documento: ${document.id}, reminderId: $reminderId, completado: $completado")
+
+                        if (reminderId != null && completado) {
+                            completedReminderIds.add(reminderId)
+                            Log.d(TAG, "✓ Recordatorio $reminderId marcado como completado")
+                        }
+                    }
+
+                    Log.d(TAG, "=== RESUMEN RECORDATORIOS COMPLETADOS ===")
+                    Log.d(TAG, "Total encontrados: ${completedReminderIds.size}")
+                    Log.d(TAG, "IDs completados: $completedReminderIds")
+
+                    // PASO 3: Cargar datos mock con estados aplicados
+                    loadMockDataWithCompletedStates(completedReminderIds)
+
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error al procesar recordatorios: ${e.message}", e)
+                    _errorMessage.value = "Error al procesar recordatorios: ${e.message}"
+                    // Fallback: cargar datos mock sin estados
+                    loadBasicMockData()
+                }
+            }
+            .addOnFailureListener { exception ->
+                Log.e(TAG, "Error al cargar recordatorios: ${exception.message}", exception)
+                // Fallback: cargar datos mock sin estados
+                loadBasicMockData()
+            }
+    }
+
+    private fun loadMockDataWithCompletedStates(completedReminderIds: Set<Int>) {
+        try {
+            Log.d(TAG, "=== PASO 3: Aplicando estados completados ===")
+            Log.d(TAG, "Estados a aplicar: $completedReminderIds")
+
+            // Meta diaria y tip
+            _dailyGoal.value = "Meta diaria 2.5L"
+            _dailyTip.value = "Mantente hidratado para despertar por dentro tu belleza natural. La hidratación facilita el flujo sanguíneo y aporta la lucidez en piel y cuerpo que tanto amas."
+
+            // Crear recordatorios base
+            val recordatoriosBase = getBaseReminders()
+
+            // Aplicar estados de completado
+            val recordatorios = recordatoriosBase.map { recordatorio ->
+                val estaCompletado = completedReminderIds.contains(recordatorio.id)
+                val recordatorioFinal = recordatorio.copy(completado = estaCompletado)
+
+                Log.d(TAG, "Recordatorio ${recordatorio.id}: ${if (estaCompletado) "COMPLETADO ✓" else "PENDIENTE ○"}")
+
+                recordatorioFinal
+            }
+
+            _hydrationReminders.value = recordatorios
+
+            // Cargar resto de datos mock
+            loadAdditionalMockData()
+
+            _isLoading.value = false
+            Log.d(TAG, "=== CARGA COMPLETADA EXITOSAMENTE ===")
+            Log.d(TAG, "Total recordatorios: ${recordatorios.size}")
+            Log.d(TAG, "Recordatorios completados: ${recordatorios.count { it.completado }}")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al aplicar estados completados: ${e.message}", e)
+            _errorMessage.value = "Error al procesar los estados"
+            loadBasicMockData()
+        }
+    }
+
+    private fun loadBasicMockData() {
+        try {
+            Log.d(TAG, "=== CARGANDO DATOS MOCK BÁSICOS (SIN ESTADOS) ===")
+
+            _dailyGoal.value = "Meta diaria 2.5L"
+            _dailyTip.value = "Mantente hidratado para despertar por dentro tu belleza natural. La hidratación facilita el flujo sanguíneo y aporta la lucidez en piel y cuerpo que tanto amas."
+
+            val recordatorios = getBaseReminders()
+            _hydrationReminders.value = recordatorios
+
+            loadAdditionalMockData()
+            _isLoading.value = false
+
+            Log.d(TAG, "Datos mock básicos cargados: ${recordatorios.size} recordatorios")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al cargar datos mock básicos: ${e.message}", e)
+            _isLoading.value = false
+        }
+    }
+
+    private fun getBaseReminders(): List<RecordatorioHidratacion> {
+        return listOf(
+            RecordatorioHidratacion(
+                id = 1,
+                hora = "06:00 - 09:00",
+                descripcion = "Al despertar",
+                cantidad = "500ml",
+                completado = false,
+                tipo = TipoRecordatorio.MAÑANA
+            ),
+            RecordatorioHidratacion(
+                id = 2,
+                hora = "09:00 - 11:00",
+                descripcion = "Media mañana",
+                cantidad = "250ml",
+                completado = false,
+                tipo = TipoRecordatorio.MAÑANA
+            ),
+            RecordatorioHidratacion(
+                id = 3,
+                hora = "11:00 - 13:00",
+                descripcion = "Antes de almorzar",
+                cantidad = "500ml",
+                completado = false,
+                tipo = TipoRecordatorio.TARDE
+            ),
+            RecordatorioHidratacion(
+                id = 4,
+                hora = "13:00 - 15:00",
+                descripcion = "Después de almorzar",
+                cantidad = "300ml",
+                completado = false,
+                tipo = TipoRecordatorio.TARDE
+            ),
+            RecordatorioHidratacion(
+                id = 5,
+                hora = "15:00 - 18:00",
+                descripcion = "Tarde",
+                cantidad = "500ml",
+                completado = false,
+                tipo = TipoRecordatorio.TARDE
+            ),
+            RecordatorioHidratacion(
+                id = 6,
+                hora = "18:00 - 20:00",
+                descripcion = "Antes de cenar",
+                cantidad = "250ml",
+                completado = false,
+                tipo = TipoRecordatorio.NOCHE
+            ),
+            RecordatorioHidratacion(
+                id = 7,
+                hora = "20:00 - 22:00",
+                descripcion = "Noche",
+                cantidad = "200ml",
+                completado = false,
+                tipo = TipoRecordatorio.NOCHE
+            )
+        )
+    }
+
+    private fun loadAdditionalMockData() {
+        // Estadísticas de hidratación
+        val stats = EstadisticasHidratacion(
+            promedioSemanal = 2.1f,
+            mejorDia = "Lunes - 2.8L",
+            rachaActual = 5,
+            totalSemana = 14.7f,
+            porcentajeObjetivo = 72
+        )
+        _hydrationStats.value = stats
+
+        // Historial semanal
+        val historialSemanal = listOf(
+            HidratacionSemanal("Lun", 2.8f, 100),
+            HidratacionSemanal("Mar", 2.2f, 88),
+            HidratacionSemanal("Mié", 1.9f, 76),
+            HidratacionSemanal("Jue", 2.5f, 100),
+            HidratacionSemanal("Vie", 2.1f, 84),
+            HidratacionSemanal("Sáb", 1.8f, 72),
+            HidratacionSemanal("Dom", 1.4f, 56)
+        )
+        _weeklyHistory.value = historialSemanal
+    }
+
+    fun completeReminder(reminderId: Int) {
+        try {
+            Log.d(TAG, "=== COMPLETANDO RECORDATORIO $reminderId ===")
+
+            val currentReminders = _hydrationReminders.value?.toMutableList() ?: return
+            val reminderIndex = currentReminders.indexOfFirst { it.id == reminderId }
+
+            if (reminderIndex == -1) {
+                Log.e(TAG, "Recordatorio $reminderId no encontrado")
+                return
+            }
+
+            val reminder = currentReminders[reminderIndex]
+
+            if (reminder.completado) {
+                Log.w(TAG, "Recordatorio $reminderId ya está completado")
+                return
+            }
+
+            // 1. Actualizar estado local inmediatamente
+            val updatedReminder = reminder.copy(completado = true)
+            currentReminders[reminderIndex] = updatedReminder
+            _hydrationReminders.value = currentReminders
+
+            // 2. Calcular nueva cantidad total
+            val amount = extractAmountFromString(updatedReminder.cantidad)
+            val currentAmount = getCurrentHydrationAmount()
+            val newTotalAmount = currentAmount + (amount / 1000f)
+
+            // 3. Actualizar UI inmediatamente
+            _currentHydration.value = String.format("%.1f L", newTotalAmount)
+            val percentage = ((newTotalAmount / 2.5f) * 100).toInt().coerceAtMost(100)
+            _waterGlassLevel.value = percentage
+
+            // 4. Guardar TODO en Firebase de una sola vez
+            saveCompleteHydrationData(reminderId, newTotalAmount)
+
+            Log.d(TAG, "Recordatorio $reminderId completado: +${amount}ml, Total: ${newTotalAmount}L")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al completar recordatorio $reminderId: ${e.message}", e)
+            _errorMessage.value = "Error al completar recordatorio"
+        }
+    }
+
+
+    // ✅ NUEVO MÉTODO UNIFICADO PARA GUARDAR DATOS
+    private fun saveCompleteHydrationData(reminderId: Int, totalLiters: Float) {
         val currentUser = auth.currentUser
         if (currentUser == null) {
-            Log.e(TAG, "Usuario no autenticado para guardar datos")
-            // Aún así actualizar la UI localmente
-            updateLocalHydration(amount)
+            Log.e(TAG, "Usuario no autenticado")
             return
         }
 
         val uid = currentUser.uid
         val fecha = SimpleDateFormat("yyyy_MM_dd", Locale.getDefault()).format(Date())
-        val currentAmount = getCurrentHydrationAmount()
-        val newAmount = currentAmount + amount
 
-        val data = mapOf(
-            "litros" to newAmount,
-            "fecha" to fecha,
-            "updatedAt" to System.currentTimeMillis()
-        )
+        Log.d(TAG, "=== GUARDANDO DATOS COMPLETOS DE HIDRATACIÓN ===")
+        Log.d(TAG, "UID: $uid, Fecha: $fecha, Recordatorio: $reminderId, Total: ${totalLiters}L")
 
-        Log.d(TAG, "Guardando en Firebase - UID: $uid, Fecha: $fecha, Cantidad: $newAmount")
+        // Obtener recordatorios completados actuales
+        db.collection("users").document(uid)
+            .collection("hidratacion").document(fecha)
+            .get()
+            .addOnSuccessListener { document ->
+                try {
+                    // Obtener lista actual de recordatorios completados
+                    val currentCompletedReminders = if (document.exists()) {
+                        val completedData = document.get("recordatoriosCompletados") as? List<*> ?: emptyList<Any>()
+                        completedData.mapNotNull { item ->
+                            when (item) {
+                                is Long -> item.toInt()
+                                is Int -> item
+                                is String -> item.toIntOrNull()
+                                else -> null
+                            }
+                        }.toMutableList()
+                    } else {
+                        mutableListOf<Int>()
+                    }
 
-        // Usar "users" como en PerfilViewModel
-        db.collection("users").document(uid).collection("hidratacion").document(fecha)
-            .set(data)
-            .addOnSuccessListener {
-                Log.d(TAG, "Hidratación guardada exitosamente en Firebase: ${newAmount}L")
-                updateLocalHydration(amount)
+                    // Agregar nuevo recordatorio si no existe
+                    if (!currentCompletedReminders.contains(reminderId)) {
+                        currentCompletedReminders.add(reminderId)
+                    }
+
+                    // Preparar datos completos
+                    val completeData = mapOf(
+                        "litros" to totalLiters.toDouble(),
+                        "fecha" to fecha,
+                        "recordatoriosCompletados" to currentCompletedReminders,
+                        "lastUpdated" to System.currentTimeMillis(),
+                        "uid" to uid
+                    )
+
+                    Log.d(TAG, "Guardando datos: $completeData")
+
+                    // Guardar documento principal
+                    db.collection("users").document(uid)
+                        .collection("hidratacion").document(fecha)
+                        .set(completeData)
+                        .addOnSuccessListener {
+                            Log.d(TAG, "✅ Datos principales guardados exitosamente")
+
+                            // Guardar recordatorio individual también
+                            saveIndividualReminder(uid, fecha, reminderId)
+
+                            // Notificar cambio para actualizar dashboard
+                            notifyHydrationChanged()
+                        }
+                        .addOnFailureListener { exception ->
+                            Log.e(TAG, "❌ Error al guardar datos principales: ${exception.message}", exception)
+                            _errorMessage.value = "Error al guardar: ${exception.message}"
+                        }
+
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error al procesar datos para guardar: ${e.message}", e)
+                    _errorMessage.value = "Error al procesar datos: ${e.message}"
+                }
             }
             .addOnFailureListener { exception ->
-                Log.e(TAG, "Error al guardar hidratación en Firebase: ${exception.message}", exception)
-                _errorMessage.value = "Error al guardar: ${exception.message}"
-                // Aún así actualizar localmente
-                updateLocalHydration(amount)
+                Log.e(TAG, "Error al obtener datos actuales: ${exception.message}", exception)
+                _errorMessage.value = "Error de conexión: ${exception.message}"
             }
     }
 
-    private fun updateLocalHydration(amount: Float) {
-        try {
-            val currentAmount = getCurrentHydrationAmount()
-            val newAmount = currentAmount + amount
+    private fun saveIndividualReminder(uid: String, fecha: String, reminderId: Int) {
+        val reminderData = mapOf(
+            "completado" to true,
+            "fechaCompletado" to System.currentTimeMillis(),
+            "reminderId" to reminderId
+        )
 
-            _currentHydration.value = String.format("%.1f L", newAmount)
-            val percentage = ((newAmount / 2.5f) * 100).toInt().coerceAtMost(100)
-            _waterGlassLevel.value = percentage
-
-            Log.d(TAG, "UI actualizada: ${newAmount}L, ${percentage}%")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error al actualizar UI local: ${e.message}", e)
-        }
-    }
-
-    fun completeReminder(reminderId: Int) {
-        try {
-            Log.d(TAG, "Completando recordatorio $reminderId")
-
-            val currentReminders = _hydrationReminders.value?.toMutableList() ?: return
-            val reminderIndex = currentReminders.indexOfFirst { it.id == reminderId }
-
-            if (reminderIndex != -1) {
-                val updatedReminder = currentReminders[reminderIndex].copy(completado = true)
-                currentReminders[reminderIndex] = updatedReminder
-                _hydrationReminders.value = currentReminders
-
-                // Agregar la cantidad de agua del recordatorio
-                val amount = extractAmountFromString(updatedReminder.cantidad)
-                addWaterIntake(amount / 1000f) // Convertir ml a litros
-
-                // Guardar el estado completado en Firebase
-                saveReminderCompletedState(reminderId)
-
-                Log.d(TAG, "Recordatorio $reminderId completado, agregando ${amount}ml")
+        db.collection("users").document(uid)
+            .collection("hidratacion").document(fecha)
+            .collection("recordatorios").document(reminderId.toString())
+            .set(reminderData)
+            .addOnSuccessListener {
+                Log.d(TAG, "✅ Recordatorio individual $reminderId guardado")
             }
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Error al completar recordatorio: ${e.message}", e)
-            _errorMessage.value = "Error al completar recordatorio"
-        }
+            .addOnFailureListener { exception ->
+                Log.e(TAG, "⚠️ Error al guardar recordatorio individual: ${exception.message}")
+                // No es crítico, el dato principal ya se guardó
+            }
     }
+
 
     private fun getCurrentHydrationAmount(): Float {
         return try {
@@ -198,317 +483,32 @@ class HidratacionViewModel : ViewModel() {
         }
     }
 
-
-    // Nueva función para guardar el estado completado en Firebase
-    private fun saveReminderCompletedState(reminderId: Int) {
-        val currentUser = auth.currentUser
-        if (currentUser == null) {
-            Log.e(TAG, "Usuario no autenticado para guardar estado de recordatorio")
-            return
-        }
-
-        val uid = currentUser.uid
-        val fecha = SimpleDateFormat("yyyy_MM_dd", Locale.getDefault()).format(Date())
-
-        val reminderData = mapOf(
-            "completado" to true,
-            "fechaCompletado" to System.currentTimeMillis(),
-            "reminderId" to reminderId
-        )
-
-        Log.d(TAG, "Guardando estado completado para recordatorio $reminderId")
-
-        db.collection("users").document(uid)
-            .collection("hidratacion").document(fecha)
-            .collection("recordatorios").document(reminderId.toString())
-            .set(reminderData)
-            .addOnSuccessListener {
-                Log.d(TAG, "Estado de recordatorio $reminderId guardado exitosamente")
-            }
-            .addOnFailureListener { exception ->
-                Log.e(TAG, "Error al guardar estado de recordatorio: ${exception.message}")
-            }
-    }
-
-    // Nueva función para cargar recordatorios completados
-    private fun loadCompletedReminders(uid: String, fecha: String) {
-        Log.d(TAG, "Cargando recordatorios completados para fecha: $fecha")
-
-        db.collection("users").document(uid)
-            .collection("hidratacion").document(fecha)
-            .collection("recordatorios")
-            .get()
-            .addOnSuccessListener { querySnapshot ->
-                try {
-                    val completedReminderIds = mutableSetOf<Int>()
-
-                    for (document in querySnapshot.documents) {
-                        val reminderId = document.id.toIntOrNull()
-                        if (reminderId != null) {
-                            completedReminderIds.add(reminderId)
-                            Log.d(TAG, "Recordatorio $reminderId encontrado como completado")
-                        }
-                    }
-
-                    Log.d(TAG, "Total recordatorios completados encontrados: ${completedReminderIds.size}")
-
-                    // Cargar datos mock con los estados de completado
-                    loadMockDataWithCompletedStates(completedReminderIds)
-                    _isLoading.value = false
-
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error al procesar recordatorios completados: ${e.message}")
-                    loadMockData() // Fallback a datos mock normales
-                    _isLoading.value = false
-                }
-            }
-            .addOnFailureListener { exception ->
-                Log.e(TAG, "Error al cargar recordatorios completados: ${exception.message}")
-                loadMockData() // Fallback a datos mock normales
-                _isLoading.value = false
-            }
-    }
-
-
-    // Función modificada para cargar datos mock con estados de completado
-    private fun loadMockDataWithCompletedStates(completedReminderIds: Set<Int>) {
-        try {
-            Log.d(TAG, "Cargando datos mock con estados completados: $completedReminderIds")
-
-            // Meta diaria y tip
-            _dailyGoal.value = "Meta diaria 2.5L"
-            _dailyTip.value = "Mantente hidratado para despertar por dentro tu belleza natural. La hidratación facilita el flujo sanguíneo y aporta la lucidez en piel y cuerpo que tanto amas."
-
-            // Crear recordatorios base
-            val recordatoriosBase = listOf(
-                RecordatorioHidratacion(
-                    id = 1,
-                    hora = "06:00 - 09:00",
-                    descripcion = "Al despertar",
-                    cantidad = "500ml",
-                    completado = false,
-                    tipo = TipoRecordatorio.MAÑANA
-                ),
-                RecordatorioHidratacion(
-                    id = 2,
-                    hora = "09:00 - 11:00",
-                    descripcion = "Media mañana",
-                    cantidad = "250ml",
-                    completado = false,
-                    tipo = TipoRecordatorio.MAÑANA
-                ),
-                RecordatorioHidratacion(
-                    id = 3,
-                    hora = "11:00 - 13:00",
-                    descripcion = "Antes de almorzar",
-                    cantidad = "500ml",
-                    completado = false,
-                    tipo = TipoRecordatorio.TARDE
-                ),
-                RecordatorioHidratacion(
-                    id = 4,
-                    hora = "13:00 - 15:00",
-                    descripcion = "Después de almorzar",
-                    cantidad = "300ml",
-                    completado = false,
-                    tipo = TipoRecordatorio.TARDE
-                ),
-                RecordatorioHidratacion(
-                    id = 5,
-                    hora = "15:00 - 18:00",
-                    descripcion = "Tarde",
-                    cantidad = "500ml",
-                    completado = false,
-                    tipo = TipoRecordatorio.TARDE
-                ),
-                RecordatorioHidratacion(
-                    id = 6,
-                    hora = "18:00 - 20:00",
-                    descripcion = "Antes de cenar",
-                    cantidad = "250ml",
-                    completado = false,
-                    tipo = TipoRecordatorio.NOCHE
-                ),
-                RecordatorioHidratacion(
-                    id = 7,
-                    hora = "20:00 - 22:00",
-                    descripcion = "Noche",
-                    cantidad = "200ml",
-                    completado = false,
-                    tipo = TipoRecordatorio.NOCHE
-                )
-            )
-
-            // Actualizar estados de completado desde Firebase
-            val recordatorios = recordatoriosBase.map { recordatorio ->
-                val estaCompletado = completedReminderIds.contains(recordatorio.id)
-                recordatorio.copy(completado = estaCompletado)
-            }
-
-            Log.d(TAG, "Recordatorios con estados aplicados:")
-            recordatorios.forEach { recordatorio ->
-                Log.d(TAG, "ID ${recordatorio.id}: ${if (recordatorio.completado) "Completado" else "Pendiente"}")
-            }
-
-            _hydrationReminders.value = recordatorios
-
-            // Resto de datos mock...
-            val stats = EstadisticasHidratacion(
-                promedioSemanal = 2.1f,
-                mejorDia = "Lunes - 2.8L",
-                rachaActual = 5,
-                totalSemana = 14.7f,
-                porcentajeObjetivo = 72
-            )
-            _hydrationStats.value = stats
-
-            val historialSemanal = listOf(
-                HidratacionSemanal("Lun", 2.8f, 100),
-                HidratacionSemanal("Mar", 2.2f, 88),
-                HidratacionSemanal("Mié", 1.9f, 76),
-                HidratacionSemanal("Jue", 2.5f, 100),
-                HidratacionSemanal("Vie", 2.1f, 84),
-                HidratacionSemanal("Sáb", 1.8f, 72),
-                HidratacionSemanal("Dom", 1.4f, 56)
-            )
-            _weeklyHistory.value = historialSemanal
-
-            Log.d(TAG, "Datos mock cargados exitosamente: ${recordatorios.size} recordatorios")
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Error al cargar datos mock con estados: ${e.message}", e)
-            _errorMessage.value = "Error al procesar los datos"
-        }
-    }
-
-
     private fun extractAmountFromString(cantidadStr: String): Float {
         return try {
             cantidadStr.replace("ml", "").trim().toFloat()
         } catch (e: Exception) {
             Log.w(TAG, "Error al extraer cantidad de '$cantidadStr', usando 250ml por defecto")
-            250f // valor por defecto
-        }
-    }
-
-    private fun loadMockData() {
-        try {
-            Log.d(TAG, "Cargando datos mock...")
-
-            // Meta diaria y tip
-            _dailyGoal.value = "Meta diaria 2.5L"
-            _dailyTip.value = "Mantente hidratado para despertar por dentro tu belleza natural. La hidratación facilita el flujo sanguíneo y aporta la lucidez en piel y cuerpo que tanto amas."
-
-            // Recordatorios de hidratación con más variedad
-            val recordatorios = listOf(
-                RecordatorioHidratacion(
-                    id = 1,
-                    hora = "06:00 - 9:00",
-                    descripcion = "Al despertar",
-                    cantidad = "500ml",
-                    completado = false,
-                    tipo = TipoRecordatorio.MAÑANA
-                ),
-                RecordatorioHidratacion(
-                    id = 2,
-                    hora = "9:00 - 11:00",
-                    descripcion = "Media mañana",
-                    cantidad = "250ml",
-                    completado = false,
-                    tipo = TipoRecordatorio.MAÑANA
-                ),
-                RecordatorioHidratacion(
-                    id = 3,
-                    hora = "11:00 - 13:00",
-                    descripcion = "Antes de almorzar",
-                    cantidad = "500ml",
-                    completado = false,
-                    tipo = TipoRecordatorio.TARDE
-                ),
-                RecordatorioHidratacion(
-                    id = 4,
-                    hora = "13:00 - 15:00",
-                    descripcion = "Después de almorzar",
-                    cantidad = "300ml",
-                    completado = false,
-                    tipo = TipoRecordatorio.TARDE
-                ),
-                RecordatorioHidratacion(
-                    id = 5,
-                    hora = "15:00 - 18:00",
-                    descripcion = "Tarde",
-                    cantidad = "500ml",
-                    completado = false,
-                    tipo = TipoRecordatorio.TARDE
-                ),
-                RecordatorioHidratacion(
-                    id = 6,
-                    hora = "18:00 - 20:00",
-                    descripcion = "Antes de cenar",
-                    cantidad = "250ml",
-                    completado = false,
-                    tipo = TipoRecordatorio.NOCHE
-                ),
-                RecordatorioHidratacion(
-                    id = 7,
-                    hora = "20:00 - 22:00",
-                    descripcion = "Noche",
-                    cantidad = "200ml",
-                    completado = false,
-                    tipo = TipoRecordatorio.NOCHE
-                )
-            )
-            _hydrationReminders.value = recordatorios
-
-            // Estadísticas de hidratación
-            val stats = EstadisticasHidratacion(
-                promedioSemanal = 2.1f,
-                mejorDia = "Lunes - 2.8L",
-                rachaActual = 5,
-                totalSemana = 14.7f,
-                porcentajeObjetivo = 72
-            )
-            _hydrationStats.value = stats
-
-            // Historial semanal
-            val historialSemanal = listOf(
-                HidratacionSemanal("Lun", 2.8f, 100),
-                HidratacionSemanal("Mar", 2.2f, 88),
-                HidratacionSemanal("Mié", 1.9f, 76),
-                HidratacionSemanal("Jue", 2.5f, 100),
-                HidratacionSemanal("Vie", 2.1f, 84),
-                HidratacionSemanal("Sáb", 1.8f, 72),
-                HidratacionSemanal("Dom", 1.4f, 56)
-            )
-            _weeklyHistory.value = historialSemanal
-
-            Log.d(TAG, "Datos mock cargados exitosamente: ${recordatorios.size} recordatorios")
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Error al cargar datos mock: ${e.message}", e)
-            _errorMessage.value = "Error al procesar los datos"
+            250f
         }
     }
 
     private fun loadMockDataOnly() {
         try {
-            Log.d(TAG, "Cargando solo datos mock (sin Firebase)")
+            Log.d(TAG, "=== CARGANDO SOLO DATOS MOCK (SIN FIREBASE) ===")
 
-            // Valores por defecto sin Firebase
             _currentHydration.value = "0.0 L"
             _waterGlassLevel.value = 0
             _isLoading.value = true
 
-            loadMockData()
+            loadBasicMockData()
 
-            _isLoading.value = false
         } catch (e: Exception) {
             Log.e(TAG, "Error al cargar datos mock únicamente: ${e.message}", e)
             _isLoading.value = false
         }
     }
 
-    // Función para verificar si un recordatorioo debe estar habilitado
+    // Función para verificar si un recordatorio debe estar habilitado
     fun isReminderEnabled(reminder: RecordatorioHidratacion): Boolean {
         // Si ya está completado, no debe estar habilitado
         if (reminder.completado) {
@@ -519,7 +519,6 @@ class HidratacionViewModel : ViewModel() {
         return isReminderInActiveTime(reminder)
     }
 
-    // Función para verificar si un recordatorio está en su horario activo
     private fun isReminderInActiveTime(reminder: RecordatorioHidratacion): Boolean {
         try {
             val currentTime = Calendar.getInstance()
@@ -527,9 +526,8 @@ class HidratacionViewModel : ViewModel() {
             val currentMinute = currentTime.get(Calendar.MINUTE)
             val currentTotalMinutes = currentHour * 60 + currentMinute
 
-            // Parsear el rango de horas (ej: "06:00 - 9:00")
             val horaRange = reminder.hora.split(" - ")
-            if (horaRange.size != 2) return true // Si no se puede parsear, habilitar siempre
+            if (horaRange.size != 2) return true
 
             val startTime = parseTimeToMinutes(horaRange[0].trim())
             val endTime = parseTimeToMinutes(horaRange[1].trim())
@@ -542,11 +540,10 @@ class HidratacionViewModel : ViewModel() {
 
         } catch (e: Exception) {
             Log.e(TAG, "Error al verificar horario para recordatorio ${reminder.id}: ${e.message}")
-            return true // En caso de error, habilitar el botón
+            return true
         }
     }
 
-    // Función auxiliar para convertir hora (HH:mm) a minutos totales
     private fun parseTimeToMinutes(timeStr: String): Int {
         try {
             val parts = timeStr.split(":")
@@ -559,8 +556,8 @@ class HidratacionViewModel : ViewModel() {
         }
     }
 
-    // Funciones adicionales útiles
     fun refreshData() {
+        Log.d(TAG, "=== REFRESCANDO DATOS ===")
         loadHydrationData(null)
     }
 
@@ -568,7 +565,6 @@ class HidratacionViewModel : ViewModel() {
         _errorMessage.value = null
     }
 
-    // Función de debug para verificar la conexión
     fun debugFirebaseConnection() {
         val currentUser = auth.currentUser
         Log.d(TAG, "=== DEBUG FIREBASE CONNECTION ===")
@@ -581,7 +577,6 @@ class HidratacionViewModel : ViewModel() {
             Log.d(TAG, "Fecha para documento: $fecha")
             Log.d(TAG, "Ruta completa: users/${currentUser.uid}/hidratacion/$fecha")
 
-            // Intentar leer documento específico
             db.collection("users").document(currentUser.uid)
                 .collection("hidratacion").document(fecha)
                 .get()
@@ -593,7 +588,6 @@ class HidratacionViewModel : ViewModel() {
                     Log.e(TAG, "DEBUG: Error al leer documento: ${exception.message}")
                 }
 
-            // También verificar si el documento del usuario existe
             db.collection("users").document(currentUser.uid)
                 .get()
                 .addOnSuccessListener { userDoc ->
@@ -606,18 +600,85 @@ class HidratacionViewModel : ViewModel() {
         Log.d(TAG, "=== FIN DEBUG ===")
     }
 
+    fun diagnosticFirestorePermissions() {
+        val currentUser = auth.currentUser
+        if (currentUser == null) {
+            Log.e(TAG, "DIAGNOSTIC: No hay usuario autenticado")
+            return
+        }
+
+        val uid = currentUser.uid
+        val fecha = SimpleDateFormat("yyyy_MM_dd", Locale.getDefault()).format(Date())
+
+        Log.d(TAG, "=== DIAGNÓSTICO DE PERMISOS FIRESTORE ===")
+        Log.d(TAG, "UID: $uid")
+        Log.d(TAG, "Fecha: $fecha")
+        Log.d(TAG, "Auth UID: ${currentUser.uid}")
+        Log.d(TAG, "Email: ${currentUser.email}")
+
+        // Test 1: Escribir en documento principal de usuario
+        Log.d(TAG, "TEST 1: Escribiendo en documento principal del usuario...")
+        db.collection("users").document(uid)
+            .set(mapOf("testField" to "test", "timestamp" to System.currentTimeMillis()))
+            .addOnSuccessListener {
+                Log.d(TAG, "✓ TEST 1: Escritura en documento principal EXITOSA")
+
+                // Test 2: Escribir en subcolección hidratacion
+                Log.d(TAG, "TEST 2: Escribiendo en subcolección hidratacion...")
+                db.collection("users").document(uid)
+                    .collection("hidratacion").document(fecha)
+                    .set(mapOf("litros" to 0.5, "fecha" to fecha, "timestamp" to System.currentTimeMillis()))
+                    .addOnSuccessListener {
+                        Log.d(TAG, "✓ TEST 2: Escritura en hidratacion EXITOSA")
+
+                        // Test 3: Escribir en subcolección recordatorios
+                        Log.d(TAG, "TEST 3: Escribiendo en subcolección recordatorios...")
+                        db.collection("users").document(uid)
+                            .collection("hidratacion").document(fecha)
+                            .collection("recordatorios").document("test")
+                            .set(mapOf("completado" to true, "reminderId" to 999, "timestamp" to System.currentTimeMillis()))
+                            .addOnSuccessListener {
+                                Log.d(TAG, "✓ TEST 3: Escritura en recordatorios EXITOSA")
+                                Log.d(TAG, "=== TODOS LOS TESTS PASARON ===")
+                            }
+                            .addOnFailureListener { exception ->
+                                Log.e(TAG, "✗ TEST 3: Error en recordatorios: ${exception.message}", exception)
+                            }
+                    }
+                    .addOnFailureListener { exception ->
+                        Log.e(TAG, "✗ TEST 2: Error en hidratacion: ${exception.message}", exception)
+                    }
+            }
+            .addOnFailureListener { exception ->
+                Log.e(TAG, "✗ TEST 1: Error en documento principal: ${exception.message}", exception)
+            }
+
+        // Test adicional: Verificar estructura de auth
+        Log.d(TAG, "=== INFORMACIÓN DE AUTENTICACIÓN ===")
+        Log.d(TAG, "Usuario autenticado: ${auth.currentUser != null}")
+        Log.d(TAG, "Token válido: ${auth.currentUser?.getIdToken(false)}")
+
+        // Test de lectura
+        Log.d(TAG, "TEST LECTURA: Intentando leer documento de usuario...")
+        db.collection("users").document(uid).get()
+            .addOnSuccessListener { document ->
+                Log.d(TAG, "✓ LECTURA: Documento leído exitosamente. Existe: ${document.exists()}")
+            }
+            .addOnFailureListener { exception ->
+                Log.e(TAG, "✗ LECTURA: Error al leer documento: ${exception.message}", exception)
+            }
+    }
+
     fun resetDailyProgress() {
         try {
-            Log.d(TAG, "Reseteando progreso diario")
+            Log.d(TAG, "=== RESETEANDO PROGRESO DIARIO ===")
 
             _currentHydration.value = "0.0 L"
             _waterGlassLevel.value = 0
 
-            // Resetear recordatorios
             val resetReminders = _hydrationReminders.value?.map { it.copy(completado = false) }
             _hydrationReminders.value = resetReminders ?: emptyList()
 
-            // Si hay usuario autenticado, también resetear en Firebase
             val currentUser = auth.currentUser
             if (currentUser != null) {
                 val uid = currentUser.uid
@@ -625,14 +686,13 @@ class HidratacionViewModel : ViewModel() {
 
                 Log.d(TAG, "Reseteando datos en Firebase - UID: $uid, Fecha: $fecha")
 
-                // Usar "users" como en PerfilViewModel
                 db.collection("users").document(uid).collection("hidratacion").document(fecha)
                     .delete()
                     .addOnSuccessListener {
-                        Log.d(TAG, "Datos de Firebase reseteados")
+                        Log.d(TAG, "✓ Datos de Firebase reseteados")
                     }
                     .addOnFailureListener { exception ->
-                        Log.e(TAG, "Error al resetear Firebase: ${exception.message}")
+                        Log.e(TAG, "✗ Error al resetear Firebase: ${exception.message}")
                     }
             }
 
@@ -641,11 +701,10 @@ class HidratacionViewModel : ViewModel() {
         }
     }
 
-    // Data classes para estructurar los datos
+    // Data classes
     data class RecordatorioHidratacion(
         val id: Int,
         val hora: String,
-
         val descripcion: String,
         val cantidad: String,
         val completado: Boolean,
@@ -669,4 +728,43 @@ class HidratacionViewModel : ViewModel() {
         val cantidad: Float,
         val porcentaje: Int
     )
+
+    private var onHydrationChangedListener: ((Double) -> Unit)? = null
+
+    fun setOnHydrationChangedListener(listener: (Double) -> Unit) {
+        onHydrationChangedListener = listener
+    }
+
+    private fun notifyHydrationChanged() {
+        try {
+            val currentAmount = getCurrentHydrationAmount()
+            Log.d(TAG, "📢 Notificando cambio de hidratación: ${currentAmount}L")
+            onHydrationChangedListener?.invoke(currentAmount.toDouble())
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al notificar cambio de hidratación: ${e.message}", e)
+        }
+    }
+
+    // ✅ MODIFICAR LA FUNCIÓN updateLocalHydration PARA INCLUIR LA NOTIFICACIÓN
+    private fun updateLocalHydrationWithNotification(amount: Float) {
+        try {
+            val currentAmount = getCurrentHydrationAmount()
+            val newAmount = currentAmount + amount
+
+            _currentHydration.value = String.format("%.1f L", newAmount)
+            val percentage = ((newAmount / 2.5f) * 100).toInt().coerceAtMost(100)
+            _waterGlassLevel.value = percentage
+
+            Log.d(TAG, "UI actualizada: ${newAmount}L, ${percentage}%")
+
+            // ✅ NOTIFICAR EL CAMBIO
+            notifyHydrationChanged()
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al actualizar UI local: ${e.message}", e)
+        }
+    }
+
+
+
 }
