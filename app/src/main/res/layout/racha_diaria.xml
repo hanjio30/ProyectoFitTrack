@@ -39,7 +39,7 @@
                     android:padding="8dp"
                     android:src="@drawable/ic_calendar" />
 
-                <!-- Ícono de Regalo -->
+                <!-- Ícono de Regaloo -->
                 <ImageView
                     android:id="@+id/iv_gift"
                     android:layout_width="37dp"
