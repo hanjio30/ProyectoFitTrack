@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -22,6 +23,8 @@ class RecorridoFragment : Fragment() {
 
     private val recorridoViewModel: RecorridoViewModel by activityViewModels()
     private lateinit var containerRecorridos: LinearLayout
+    private lateinit var loadingView: View
+    private lateinit var errorView: TextView
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -34,17 +37,76 @@ class RecorridoFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        containerRecorridos = view.findViewById(R.id.containerRecorridos)
+        initViews(view)
         setupObservers()
-        // Solo para pruebas - eliminar después
-        // recorridoViewModel.agregarDatosPrueba()
 
+        // Cargar recorridos al iniciar
+        recorridoViewModel.cargarRecorridos()
+    }
+
+    private fun initViews(view: View) {
+        containerRecorridos = view.findViewById(R.id.containerRecorridos)
+
+        // Crear vista de carga (puedes personalizar esto)
+        loadingView = TextView(requireContext()).apply {
+            text = "Cargando recorridos..."
+            textSize = 16f
+            setTextColor(ContextCompat.getColor(requireContext(), android.R.color.darker_gray))
+            setPadding(32, 64, 32, 64)
+            gravity = android.view.Gravity.CENTER
+        }
+
+        // Crear vista de error
+        errorView = TextView(requireContext()).apply {
+            textSize = 16f
+            setTextColor(ContextCompat.getColor(requireContext(), android.R.color.holo_red_light))
+            setPadding(32, 64, 32, 64)
+            gravity = android.view.Gravity.CENTER
+        }
     }
 
     private fun setupObservers() {
+        // Observar recorridos
         recorridoViewModel.recorridos.observe(viewLifecycleOwner, Observer { recorridos ->
             actualizarHistorialRecorridos(recorridos)
         })
+
+        // Observar estado de carga
+        recorridoViewModel.isLoading.observe(viewLifecycleOwner, Observer { isLoading ->
+            if (isLoading) {
+                mostrarCarga()
+            }
+        })
+
+        // Observar errores
+        recorridoViewModel.error.observe(viewLifecycleOwner, Observer { error ->
+            error?.let {
+                mostrarError(it)
+                recorridoViewModel.clearError()
+            }
+        })
+
+        // Observar guardado exitoso
+        recorridoViewModel.guardadoExitoso.observe(viewLifecycleOwner, Observer { exitoso ->
+            if (exitoso) {
+                Toast.makeText(requireContext(), "Recorrido guardado exitosamente", Toast.LENGTH_SHORT).show()
+                recorridoViewModel.clearGuardadoExitoso()
+            }
+        })
+    }
+
+    private fun mostrarCarga() {
+        containerRecorridos.removeAllViews()
+        containerRecorridos.addView(loadingView)
+    }
+
+    private fun mostrarError(mensaje: String) {
+        containerRecorridos.removeAllViews()
+        errorView.text = "Error: $mensaje\n\nToca para reintentar"
+        errorView.setOnClickListener {
+            recorridoViewModel.cargarRecorridos()
+        }
+        containerRecorridos.addView(errorView)
     }
 
     private fun actualizarHistorialRecorridos(recorridos: MutableList<com.example.fittrack.ViewModel.Recorrido>) {
@@ -96,8 +158,6 @@ class RecorridoFragment : Fragment() {
             val calRecorrido = Calendar.getInstance().apply { time = fechaRecorrido }
             val calHoy = Calendar.getInstance().apply { time = fechaHoy }
 
-            /// Obtener día de la semana (incluso si es hoy)
-
             // Obtener día de la semana
             when (calRecorrido.get(Calendar.DAY_OF_WEEK)) {
                 Calendar.MONDAY -> "Lunes"
@@ -116,7 +176,7 @@ class RecorridoFragment : Fragment() {
 
     private fun mostrarMensajeVacio() {
         val textView = TextView(requireContext()).apply {
-            text = "No hay recorridos registrados"
+            text = "No hay recorridos registrados\n\nComienza tu primer recorrido para verlo aquí"
             textSize = 16f
             setTextColor(ContextCompat.getColor(requireContext(), android.R.color.darker_gray))
             setPadding(32, 64, 32, 64)
@@ -343,5 +403,11 @@ class RecorridoFragment : Fragment() {
         mainContainer.addView(cardView)
 
         return mainContainer
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Recargar recorridos cuando el fragment vuelve a ser visible
+        recorridoViewModel.cargarRecorridos()
     }
 }
