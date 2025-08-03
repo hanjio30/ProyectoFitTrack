@@ -80,7 +80,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="24dp"
                 android:nestedScrollingEnabled="false"
-                android:minHeight="700dp"
+                android:minHeight="750dp"
                 tools:listitem="@layout/item_hydration_reminder" />
 
             <!-- Tip de hidratación -->
