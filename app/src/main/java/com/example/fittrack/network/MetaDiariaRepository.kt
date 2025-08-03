@@ -28,20 +28,21 @@ class MetaDiariaRepository {
             if (documento.exists()) {
                 val meta = documento.toObject(MetaDiaria::class.java)
                 if (meta != null) {
-                    // ✅ USAR LOS VALORES DE LA BASE DE DATOS DIRECTAMENTE
-                    // Si ya están calculados en la BD, úsalos
-                    val progresoActual = meta.progresoActual
-                    val porcentajeCalculado = meta.porcentajeCompletado
-                    val puntosCalculados = meta.puntosGanados
+                    // ✅ SIEMPRE RECALCULAR EL PROGRESO ACTUAL DESDE LOS RECORRIDOS
+                    val progresoRecalculado = calcularProgresoDelDia(userId, fechaHoy)
 
-                    Log.d(TAG, "Meta cargada - Progreso: $progresoActual, Porcentaje: $porcentajeCalculado, Puntos: $puntosCalculados")
+                    Log.d(TAG, "Meta cargada - Progreso BD: ${meta.progresoActual}, Progreso recalculado: $progresoRecalculado")
 
                     val metaActualizada = meta.copy(
-                        progresoActual = progresoActual,
-                        porcentajeCompletado = porcentajeCalculado,
-                        puntosGanados = puntosCalculados,
-                        metaAlcanzada = porcentajeCalculado >= 100
+                        progresoActual = progresoRecalculado,
+                        porcentajeCompletado = calcularPorcentaje(progresoRecalculado, meta.metaKilometros),
+                        puntosGanados = calcularPuntos(progresoRecalculado, meta.metaKilometros),
+                        metaAlcanzada = progresoRecalculado >= meta.metaKilometros
                     )
+
+                    // Actualizar la meta en la BD con los nuevos valores
+                    actualizarProgresoEnBD(userId, fechaHoy, metaActualizada)
+
                     Result.success(metaActualizada)
                 } else {
                     Result.failure(Exception("Error al deserializar meta"))
@@ -70,10 +71,87 @@ class MetaDiariaRepository {
         }
     }
 
+    // ✨ NUEVA FUNCIÓN: Actualizar automáticamente cuando se agrega un recorrido
+    suspend fun actualizarMetaTrasNuevoRecorrido(userId: String, fechaRecorrido: String): Result<MetaDiaria> {
+        return try {
+            Log.d(TAG, "Actualizando meta tras nuevo recorrido para fecha: $fechaRecorrido")
 
-    // Calcular progreso del día basado en recorridos
+            // Calcular el nuevo progreso basado en todos los recorridos del día
+            val nuevoProgreso = calcularProgresoDelDia(userId, fechaRecorrido)
+
+            // Verificar si existe la meta para ese día
+            val documentoMeta = db.collection("users")
+                .document(userId)
+                .collection("metas")
+                .document(fechaRecorrido)
+                .get()
+                .await()
+
+            val metaActualizada = if (documentoMeta.exists()) {
+                // Meta existe, actualizarla
+                val metaExistente = documentoMeta.toObject(MetaDiaria::class.java)!!
+
+                metaExistente.copy(
+                    progresoActual = nuevoProgreso,
+                    porcentajeCompletado = calcularPorcentaje(nuevoProgreso, metaExistente.metaKilometros),
+                    puntosGanados = calcularPuntos(nuevoProgreso, metaExistente.metaKilometros),
+                    metaAlcanzada = nuevoProgreso >= metaExistente.metaKilometros
+                )
+            } else {
+                // Meta no existe, crear una nueva
+                MetaDiaria(
+                    id = fechaRecorrido,
+                    userId = userId,
+                    fecha = fechaRecorrido,
+                    metaKilometros = 10.0, // Meta por defecto
+                    progresoActual = nuevoProgreso,
+                    porcentajeCompletado = calcularPorcentaje(nuevoProgreso, 10.0),
+                    puntosGanados = calcularPuntos(nuevoProgreso, 10.0),
+                    metaAlcanzada = nuevoProgreso >= 10.0
+                )
+            }
+
+            // Guardar/actualizar en la BD
+            actualizarProgresoEnBD(userId, fechaRecorrido, metaActualizada)
+
+            Log.d(TAG, "Meta actualizada - Nuevo progreso: $nuevoProgreso km")
+            Result.success(metaActualizada)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al actualizar meta tras recorrido: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    // ✨ FUNCIÓN AUXILIAR: Actualizar solo el progreso en la BD
+    private suspend fun actualizarProgresoEnBD(userId: String, fecha: String, meta: MetaDiaria) {
+        try {
+            val datosActualizados = mapOf(
+                "progresoActual" to meta.progresoActual,
+                "porcentajeCompletado" to meta.porcentajeCompletado,
+                "puntosGanados" to meta.puntosGanados,
+                "metaAlcanzada" to meta.metaAlcanzada,
+                "updatedAt" to System.currentTimeMillis()
+            )
+
+            db.collection("users")
+                .document(userId)
+                .collection("metas")
+                .document(fecha)
+                .set(meta) // Usar set en lugar de update para crear si no existe
+                .await()
+
+            Log.d(TAG, "Progreso actualizado en BD - Fecha: $fecha, Progreso: ${meta.progresoActual}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al actualizar progreso en BD: ${e.message}", e)
+        }
+    }
+
+    // ✨ MEJORAR: Calcular progreso del día basado en recorridos (con más logs)
     private suspend fun calcularProgresoDelDia(userId: String, fecha: String): Double {
         return try {
+            Log.d(TAG, "Calculando progreso para usuario: $userId, fecha: $fecha")
+
             val recorridos = db.collection("users")
                 .document(userId)
                 .collection("recorridos")
@@ -82,16 +160,34 @@ class MetaDiariaRepository {
                 .await()
 
             var totalDistancia = 0.0
+            var contadorRecorridos = 0
+
             for (documento in recorridos.documents) {
                 val distancia = documento.getDouble("distanciaKm") ?: 0.0
                 totalDistancia += distancia
+                contadorRecorridos++
+
+                Log.d(TAG, "Recorrido encontrado - ID: ${documento.id}, Distancia: $distancia km")
             }
 
-            Log.d(TAG, "Progreso calculado para $fecha: $totalDistancia km")
+            Log.d(TAG, "Progreso calculado para $fecha: $totalDistancia km ($contadorRecorridos recorridos)")
             totalDistancia
+
         } catch (e: Exception) {
             Log.e(TAG, "Error al calcular progreso: ${e.message}", e)
             0.0
+        }
+    }
+
+    // ✨ NUEVA FUNCIÓN: Obtener progreso en tiempo real
+    suspend fun getProgresoTiempoReal(userId: String): Result<Double> {
+        return try {
+            val fechaHoy = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            val progreso = calcularProgresoDelDia(userId, fechaHoy)
+            Result.success(progreso)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al obtener progreso en tiempo real: ${e.message}", e)
+            Result.failure(e)
         }
     }
 
@@ -205,7 +301,7 @@ class MetaDiariaRepository {
 
     private fun calcularPorcentaje(progreso: Double, meta: Double): Int {
         return if (meta > 0) {
-            ((progreso / meta) * 100).toInt()  // ✅ QUITAR .coerceAtMost(100)
+            ((progreso / meta) * 100).toInt()
         } else 0
     }
 
