@@ -6,13 +6,24 @@ import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebViewClient
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import com.example.fittrack.databinding.FragmentEstadisticasBinding
+import com.example.fittrack.ViewModel.EstadisticasViewModel
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.launch
 import android.annotation.SuppressLint as SuppressLint1
+import android.util.Log
+import android.widget.Toast
 
 class EstadisticasFragment : Fragment() {
 
     private var _binding: FragmentEstadisticasBinding? = null
     private val binding get() = _binding!!
+
+    private val viewModel: EstadisticasViewModel by viewModels()
+    private val auth = FirebaseAuth.getInstance()
+    private val TAG = "EstadisticasFragment"
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -26,14 +37,70 @@ class EstadisticasFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        setupStatsCards()
+        setupObservers()
         setupWebViewCharts()
+        cargarEstadisticas()
     }
 
-    private fun setupStatsCards() {
-        // Configurar los datos de las tarjetas de estadísticas
-        binding.tvPasos.text = "960"
-        binding.tvCalorias.text = "1800"
+    private fun setupObservers() {
+        // Observar cambios en las estadísticas
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.estadisticas.collect { estadisticas ->
+                updateStatsCards(estadisticas)
+            }
+        }
+
+        // Observar estado de carga
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.isLoading.collect { isLoading ->
+                // Aquí puedes mostrar/ocultar un indicador de carga si lo deseas
+                Log.d(TAG, "Loading state: $isLoading")
+            }
+        }
+
+        // Observar errores
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.error.collect { error ->
+                error?.let {
+                    Log.e(TAG, "Error en estadísticas: $it")
+                    Toast.makeText(requireContext(), "Error: $it", Toast.LENGTH_SHORT).show()
+                    viewModel.limpiarError()
+                }
+            }
+        }
+    }
+
+    private fun updateStatsCards(estadisticas: EstadisticasViewModel.EstadisticasUiState) {
+        Log.d(TAG, "Actualizando tarjetas con: Pasos=${estadisticas.totalPasos}, Calorías=${estadisticas.totalCalorias}")
+
+        // Actualizar pasos con formato
+        binding.tvPasos.text = formatearNumero(estadisticas.totalPasos)
+
+        // Actualizar calorías con formato
+        binding.tvCalorias.text = formatearNumero(estadisticas.totalCalorias)
+    }
+
+    private fun formatearNumero(numero: Int): String {
+        return when {
+            numero >= 1000000 -> {
+                String.format("%.1fM", numero / 1000000.0)
+            }
+            numero >= 1000 -> {
+                String.format("%.1fK", numero / 1000.0)
+            }
+            else -> numero.toString()
+        }
+    }
+
+    private fun cargarEstadisticas() {
+        val currentUser = auth.currentUser
+        if (currentUser != null) {
+            Log.d(TAG, "Cargando estadísticas para usuario: ${currentUser.uid}")
+            viewModel.cargarEstadisticasDelDia(currentUser.uid)
+        } else {
+            Log.w(TAG, "Usuario no autenticado")
+            Toast.makeText(requireContext(), "Usuario no autenticado", Toast.LENGTH_SHORT).show()
+        }
     }
 
     @SuppressLint1("SetJavaScriptEnabled")
@@ -221,6 +288,12 @@ class EstadisticasFragment : Fragment() {
         """.trimIndent()
 
         webView.loadData(htmlContent, "text/html", "utf-8")
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Recargar estadísticas cuando el fragment se vuelve visible
+        cargarEstadisticas()
     }
 
     override fun onDestroyView() {
