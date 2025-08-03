@@ -54,6 +54,7 @@ dependencies {
     implementation(libs.androidx.navigation.ui)
     implementation(libs.androidx.fragment)
     implementation(libs.androidx.cardview)
+    implementation(libs.androidx.swiperefreshlayout)
 
     // Testing
     testImplementation(libs.junit)
