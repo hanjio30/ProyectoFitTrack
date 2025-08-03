@@ -354,9 +354,9 @@
                     android:gravity="center_vertical">
 
                     <ImageView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:src="@drawable/ic_bike"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:src="@drawable/ic_location"
                         app:tint="#FF9800" />
 
                     <LinearLayout
@@ -410,14 +410,10 @@
                     android:padding="16dp"
                     android:gravity="center_vertical">
 
-                    <ProgressBar
-                        android:id="@+id/progressGoal"
-                        style="?android:attr/progressBarStyleHorizontal"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:max="100"
-                        android:progress="75"
-                        android:progressDrawable="@drawable/circular_progress" />
+                    <ImageView
+                        android:layout_width="25dp"
+                        android:layout_height="25dp"
+                        android:src="@drawable/ic_meta" />
 
                     <LinearLayout
                         android:layout_width="0dp"
