@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.fittrack.model.MetaDiaria
 import com.example.fittrack.network.MetaDiariaRepository
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 class MetaDiariaViewModel : ViewModel() {
 
@@ -64,7 +65,12 @@ class MetaDiariaViewModel : ViewModel() {
     private val _datosParaCompartir = MutableLiveData<DatosCompartir>()
     val datosParaCompartir: LiveData<DatosCompartir> = _datosParaCompartir
 
+    // ✨ NUEVO: LiveData para actualización automática
+    private val _progresoActualizadoAutomaticamente = MutableLiveData<Boolean>()
+    val progresoActualizadoAutomaticamente: LiveData<Boolean> = _progresoActualizadoAutomaticamente
+
     private var currentUserId: String? = null
+    private var isAutoRefreshEnabled = true  // ✨ Control de refresco automático
 
     fun loadGoalData(userId: String?) {
         if (userId.isNullOrEmpty()) {
@@ -87,6 +93,11 @@ class MetaDiariaViewModel : ViewModel() {
                     actualizarVisualizacionDinamica(meta)
                     loadEstadisticas(userId)
 
+                    // ✨ INICIAR MONITOREO AUTOMÁTICO
+                    if (isAutoRefreshEnabled) {
+                        iniciarMonitoreoAutomatico()
+                    }
+
                     Log.d(TAG, "Datos de meta diaria cargados exitosamente")
                 } else {
                     val error = resultMeta.exceptionOrNull()
@@ -104,7 +115,78 @@ class MetaDiariaViewModel : ViewModel() {
         }
     }
 
-    // En MetaDiariaViewModel.kt - REEMPLAZA estas funciones
+    // ✨ NUEVA FUNCIÓN: Monitoreo automático del progreso
+    private fun iniciarMonitoreoAutomatico() {
+        viewModelScope.launch {
+            try {
+                while (isAutoRefreshEnabled && currentUserId != null) {
+                    delay(30000) // Verificar cada 30 segundos
+
+                    if (isAutoRefreshEnabled && currentUserId != null) {
+                        verificarActualizacionProgreso()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error en monitoreo automático: ${e.message}", e)
+            }
+        }
+    }
+
+    // ✨ NUEVA FUNCIÓN: Verificar si hay actualizaciones en el progreso
+    private suspend fun verificarActualizacionProgreso() {
+        try {
+            val userId = currentUserId ?: return
+            val progresoAnterior = _progresoActual.value ?: 0.0
+
+            // Obtener progreso actual desde la BD
+            val resultadoProgreso = repository.getProgresoTiempoReal(userId)
+
+            if (resultadoProgreso.isSuccess) {
+                val progresoNuevo = resultadoProgreso.getOrNull() ?: 0.0
+
+                // Solo actualizar si hay cambios significativos (diferencia > 0.01 km)
+                if (kotlin.math.abs(progresoNuevo - progresoAnterior) > 0.01) {
+                    Log.d(TAG, "🔄 Progreso actualizado automáticamente: $progresoAnterior → $progresoNuevo km")
+
+                    // Recargar datos completos
+                    val resultMeta = repository.getMetaDiariaActual(userId)
+                    if (resultMeta.isSuccess) {
+                        val metaActualizada = resultMeta.getOrNull()!!
+
+                        actualizarDatosBasicos(metaActualizada)
+                        actualizarVisualizacionDinamica(metaActualizada)
+
+                        // Notificar que se actualizó automáticamente
+                        _progresoActualizadoAutomaticamente.value = true
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al verificar actualización: ${e.message}", e)
+        }
+    }
+
+    // ✨ NUEVA FUNCIÓN: Forzar actualización inmediata
+    fun actualizarProgresoInmediatamente() {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "🚀 Forzando actualización inmediata del progreso")
+                verificarActualizacionProgreso()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error en actualización inmediata: ${e.message}", e)
+            }
+        }
+    }
+
+    // ✨ NUEVA FUNCIÓN: Activar/desactivar monitoreo automático
+    fun setAutoRefresh(enabled: Boolean) {
+        isAutoRefreshEnabled = enabled
+        Log.d(TAG, "Monitoreo automático ${if (enabled) "activado" else "desactivado"}")
+
+        if (enabled && currentUserId != null) {
+            iniciarMonitoreoAutomatico()
+        }
+    }
 
     private fun actualizarDatosBasicos(meta: MetaDiaria) {
         Log.d(TAG, "=== ACTUALIZANDO DATOS BÁSICOS ===")
@@ -281,6 +363,10 @@ class MetaDiariaViewModel : ViewModel() {
         _metaActualizada.value = false
     }
 
+    fun clearProgresoActualizadoFlag() {
+        _progresoActualizadoAutomaticamente.value = false
+    }
+
     fun getCurrentGoal(): Double {
         return _metaDiaria.value ?: 10.0
     }
@@ -301,6 +387,12 @@ class MetaDiariaViewModel : ViewModel() {
             porcentaje >= 25 -> "¡Sigue así!"
             else -> "¡Vamos, tú puedes!"
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        isAutoRefreshEnabled = false
+        Log.d(TAG, "ViewModel cleared - Monitoreo automático detenido")
     }
 
     // Data classes
