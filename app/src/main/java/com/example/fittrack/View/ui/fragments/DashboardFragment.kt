@@ -377,6 +377,16 @@ class DashboardFragment : Fragment() {
         }
     }
 
+    fun updateMetaProgress(progressPercentage: Int) {
+        try {
+            Log.d(TAG, "📊 Actualizando progreso de meta desde fragment: $progressPercentage%")
+            if (::dashboardViewModel.isInitialized) {
+                dashboardViewModel.updateMetaProgress(progressPercentage)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al actualizar progreso de meta: ${e.message}", e)
+        }
+    }
 
 
     override fun onResume() {

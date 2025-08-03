@@ -6,6 +6,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.fittrack.network.RecorridoRepository
+import com.example.fittrack.network.MetaDiariaRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -25,6 +26,7 @@ class DashboardViewModel : ViewModel() {
     private val databaseReference: DatabaseReference = FirebaseDatabase.getInstance().getReference()
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
     private val recorridoRepository = RecorridoRepository()
+    private val metaDiariaRepository = MetaDiariaRepository() // ✨ AGREGAR REPOSITORY DE METAS
 
     // LiveData para la UI
     private val _userName = MutableLiveData<String>()
@@ -210,42 +212,47 @@ class DashboardViewModel : ViewModel() {
                         // Cargar datos de racha
                         loadStreakData(currentUser.uid) { streakDays ->
 
-                            // Luego cargar hidratación desde Firestore
+                            // Cargar hidratación
                             loadHydrationFromFirestore(currentUser.uid) { hydrationLiters ->
 
-                                // Finalmente cargar el resto de estadísticas desde Realtime Database
-                                databaseReference.child("userStats").child(currentUser.uid)
-                                    .addListenerForSingleValueEvent(object : ValueEventListener {
-                                        override fun onDataChange(snapshot: DataSnapshot) {
-                                            try {
-                                                if (snapshot.exists()) {
-                                                    val userStats = snapshot.getValue(UserStats::class.java) ?: UserStats()
+                                // ✅ NUEVO: Cargar progreso de meta diaria
+                                loadMetaDiariaProgress(currentUser.uid) { metaProgress ->
 
-                                                    // Combinar datos de recorridos con stats existentes
-                                                    val updatedStats = userStats.copy(
-                                                        hydrationLiters = hydrationLiters,
-                                                        calories = recorridoStats.totalCalorias,
-                                                        activityMinutes = recorridoStats.totalMinutos,
-                                                        steps = recorridoStats.totalPasos,
-                                                        distanceKm = recorridoStats.totalDistanciaKm,
-                                                        streak = streakDays // ✅ USAR DÍAS DE RACHA REALES
-                                                    )
-                                                    setupStatsData(updatedStats)
-                                                } else {
-                                                    Log.d(TAG, "No hay estadísticas, usando datos de recorridos")
-                                                    setupStatsFromRecorridos(recorridoStats, hydrationLiters, streakDays)
+                                    // Finalmente cargar el resto de estadísticas
+                                    databaseReference.child("userStats").child(currentUser.uid)
+                                        .addListenerForSingleValueEvent(object : ValueEventListener {
+                                            override fun onDataChange(snapshot: DataSnapshot) {
+                                                try {
+                                                    if (snapshot.exists()) {
+                                                        val userStats = snapshot.getValue(UserStats::class.java) ?: UserStats()
+
+                                                        // Combinar datos con progreso de meta real
+                                                        val updatedStats = userStats.copy(
+                                                            hydrationLiters = hydrationLiters,
+                                                            calories = recorridoStats.totalCalorias,
+                                                            activityMinutes = recorridoStats.totalMinutos,
+                                                            steps = recorridoStats.totalPasos,
+                                                            distanceKm = recorridoStats.totalDistanciaKm,
+                                                            streak = streakDays,
+                                                            goalProgress = metaProgress // ✅ USAR PROGRESO REAL
+                                                        )
+                                                        setupStatsData(updatedStats)
+                                                    } else {
+                                                        Log.d(TAG, "No hay estadísticas, usando datos calculados")
+                                                        setupStatsFromRecorridos(recorridoStats, hydrationLiters, streakDays, metaProgress)
+                                                    }
+                                                } catch (e: Exception) {
+                                                    Log.e(TAG, "Error al procesar estadísticas: ${e.message}", e)
+                                                    setupStatsFromRecorridos(recorridoStats, hydrationLiters, streakDays, metaProgress)
                                                 }
-                                            } catch (e: Exception) {
-                                                Log.e(TAG, "Error al procesar estadísticas: ${e.message}", e)
-                                                setupStatsFromRecorridos(recorridoStats, hydrationLiters, streakDays)
                                             }
-                                        }
 
-                                        override fun onCancelled(error: DatabaseError) {
-                                            Log.e(TAG, "Error al cargar estadísticas: ${error.message}")
-                                            setupStatsFromRecorridos(recorridoStats, hydrationLiters, streakDays)
-                                        }
-                                    })
+                                            override fun onCancelled(error: DatabaseError) {
+                                                Log.e(TAG, "Error al cargar estadísticas: ${error.message}")
+                                                setupStatsFromRecorridos(recorridoStats, hydrationLiters, streakDays, metaProgress)
+                                            }
+                                        })
+                                }
                             }
                         }
                     }
@@ -259,7 +266,35 @@ class DashboardViewModel : ViewModel() {
         }
     }
 
-    // ✅ NUEVA FUNCIÓN PARA CARGAR DATOS DE RACHA DESDE FIRESTORE
+    // ✨ NUEVA FUNCIÓN: Cargar meta diaria actual
+    private fun loadMetaDiariaActual(uid: String, callback: (Int) -> Unit) {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "=== CARGANDO META DIARIA ACTUAL ===")
+
+                val result = metaDiariaRepository.getMetaDiariaActual(uid)
+
+                result.onSuccess { metaDiaria ->
+                    val porcentaje = metaDiaria.porcentajeCompletado
+                    Log.d(TAG, "✓ Meta diaria cargada - Porcentaje: $porcentaje%")
+                    Log.d(TAG, "  - Progreso: ${metaDiaria.progresoActual} km")
+                    Log.d(TAG, "  - Meta: ${metaDiaria.metaKilometros} km")
+                    callback(porcentaje)
+                }
+
+                result.onFailure { exception ->
+                    Log.e(TAG, "✗ Error al cargar meta diaria: ${exception.message}", exception)
+                    callback(0) // Valor por defecto
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error en loadMetaDiariaActual: ${e.message}", e)
+                callback(0)
+            }
+        }
+    }
+
+    // ✅ FUNCIÓN PARA CARGAR DATOS DE RACHA DESDE FIRESTORE
     private fun loadStreakData(uid: String, callback: (Int) -> Unit) {
         viewModelScope.launch {
             try {
@@ -383,24 +418,24 @@ class DashboardViewModel : ViewModel() {
         }
     }
 
-    // ✅ FUNCIÓN ACTUALIZADA PARA INCLUIR DÍAS DE RACHA
-    private fun setupStatsFromRecorridos(recorridoStats: RecorridoStats, hydrationLiters: Double, streakDays: Int) {
+    // ✅ FUNCIÓN ACTUALIZADA PARA INCLUIR PORCENTAJE DE META REAL
+    private fun setupStatsFromRecorridos(recorridoStats: RecorridoStats, hydrationLiters: Double, streakDays: Int, metaProgress: Int = 0) {
         try {
             _caloriesValue.value = "${recorridoStats.totalCalorias} kcal"
             _activityValue.value = "${recorridoStats.totalMinutos} min"
             _stepsValue.value = recorridoStats.totalPasos.toString()
 
-            // Formatear hidratación a 1 decimal
             val formattedHydration = String.format("%.1f", hydrationLiters)
             _hydrationValue.value = "$formattedHydration lit."
 
-            // ✅ USAR DÍAS DE RACHA REALES
             _streakValue.value = "$streakDays días"
             _distanceValue.value = String.format("%.1f km", recorridoStats.totalDistanciaKm)
-            _goalValue.value = "75%" // Mantener valor por defecto por ahora
+
+            // ✅ USAR PROGRESO REAL DE META DIARIA
+            _goalValue.value = "$metaProgress%"
 
             _isLoading.value = false
-            Log.d(TAG, "Estadísticas configuradas - Racha: $streakDays días")
+            Log.d(TAG, "Estadísticas configuradas - Meta: $metaProgress%, Racha: $streakDays días")
         } catch (e: Exception) {
             Log.e(TAG, "Error en setupStatsFromRecorridos: ${e.message}", e)
             setupDefaultStats()
@@ -443,6 +478,44 @@ class DashboardViewModel : ViewModel() {
         }
     }
 
+    private fun loadMetaDiariaProgress(uid: String, callback: (Int) -> Unit) {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "=== CARGANDO PROGRESO DE META DIARIA ===")
+
+                val fechaHoy = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+
+                firestore.collection(COLLECTION_USERS)
+                    .document(uid)
+                    .collection(COLLECTION_METAS)
+                    .document(fechaHoy)
+                    .get()
+                    .addOnSuccessListener { document ->
+                        try {
+                            if (document.exists()) {
+                                val porcentajeCompletado = document.getLong("porcentajeCompletado")?.toInt() ?: 0
+                                Log.d(TAG, "✓ Progreso de meta encontrado: $porcentajeCompletado%")
+                                callback(porcentajeCompletado)
+                            } else {
+                                Log.d(TAG, "No hay meta para hoy, usando 0%")
+                                callback(0)
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error al procesar progreso de meta: ${e.message}", e)
+                            callback(0)
+                        }
+                    }
+                    .addOnFailureListener { exception ->
+                        Log.e(TAG, "✗ Error al cargar progreso de meta: ${exception.message}", exception)
+                        callback(0)
+                    }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error en loadMetaDiariaProgress: ${e.message}", e)
+                callback(0)
+            }
+        }
+    }
+
     private fun setupStatsData(userStats: UserStats) {
         try {
             _caloriesValue.value = "${userStats.calories} kcal"
@@ -455,10 +528,12 @@ class DashboardViewModel : ViewModel() {
             // ✅ USAR DÍAS DE RACHA DESDE USERDATA
             _streakValue.value = "${userStats.streak} días"
             _distanceValue.value = String.format("%.1f km", userStats.distanceKm)
+
+            // ✨ USAR PORCENTAJE DE META REAL
             _goalValue.value = "${userStats.goalProgress}%"
 
             _isLoading.value = false
-            Log.d(TAG, "Estadísticas configuradas - Racha: ${userStats.streak} días")
+            Log.d(TAG, "Estadísticas configuradas - Racha: ${userStats.streak} días, Meta: ${userStats.goalProgress}%")
         } catch (e: Exception) {
             Log.e(TAG, "Error en setupStatsData: ${e.message}", e)
             setupDefaultStats()
@@ -476,13 +551,21 @@ class DashboardViewModel : ViewModel() {
 
             _streakValue.value = "0 días"
             _distanceValue.value = "0.0 km"
-            _goalValue.value = "0%"
+            _goalValue.value = "0%" // ✨ VALOR POR DEFECTO REAL
 
             _isLoading.value = false
             Log.d(TAG, "Datos por defecto configurados con hidratación real: ${formattedHydration}L")
         } catch (e: Exception) {
             Log.e(TAG, "Error en setupDefaultStats: ${e.message}", e)
             handleError("Error al configurar estadísticas")
+        }
+    }
+    fun updateMetaProgress(progress: Int) {
+        try {
+            _goalValue.value = "$progress%"
+            Log.d(TAG, "Actualizando progreso de meta en dashboard: $progress%")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al actualizar progreso de meta: ${e.message}", e)
         }
     }
 
@@ -507,13 +590,40 @@ class DashboardViewModel : ViewModel() {
         }
     }
 
-    // ✅ NUEVA FUNCIÓN PARA ACTUALIZAR SOLO LA RACHA
+    // ✅ FUNCIÓN PARA ACTUALIZAR SOLO LA RACHA
     fun updateStreakValue(streakDays: Int) {
         try {
             _streakValue.value = "$streakDays días"
             Log.d(TAG, "Actualizando valor de racha en dashboard: $streakDays días")
         } catch (e: Exception) {
             Log.e(TAG, "Error al actualizar racha: ${e.message}", e)
+        }
+    }
+
+    // ✨ NUEVA FUNCIÓN: Actualizar solo el porcentaje de meta
+    fun updateGoalValue(percentage: Int) {
+        try {
+            _goalValue.value = "$percentage%"
+            Log.d(TAG, "Actualizando valor de meta en dashboard: $percentage%")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al actualizar meta: ${e.message}", e)
+        }
+    }
+
+    // ✨ NUEVA FUNCIÓN: Actualizar meta inmediatamente
+    fun refreshGoalData() {
+        viewModelScope.launch {
+            try {
+                val currentUser = firebaseAuth.currentUser
+                if (currentUser != null) {
+                    Log.d(TAG, "🔄 Refrescando datos de meta...")
+                    loadMetaDiariaActual(currentUser.uid) { porcentaje ->
+                        updateGoalValue(porcentaje)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error al refrescar meta: ${e.message}", e)
+            }
         }
     }
 

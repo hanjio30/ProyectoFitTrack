@@ -71,6 +71,7 @@ class MetaDiariaViewModel : ViewModel() {
 
     private var currentUserId: String? = null
     private var isAutoRefreshEnabled = true  // ✨ Control de refresco automático
+    private var onProgressUpdatedCallback: ((Int) -> Unit)? = null
 
     fun loadGoalData(userId: String?) {
         if (userId.isNullOrEmpty()) {
@@ -115,6 +116,11 @@ class MetaDiariaViewModel : ViewModel() {
         }
     }
 
+    fun setProgressUpdateCallback(callback: (Int) -> Unit) {
+        onProgressUpdatedCallback = callback
+        Log.d(TAG, "Callback de actualización de progreso establecido")
+    }
+
     // ✨ NUEVA FUNCIÓN: Monitoreo automático del progreso
     private fun iniciarMonitoreoAutomatico() {
         viewModelScope.launch {
@@ -138,17 +144,14 @@ class MetaDiariaViewModel : ViewModel() {
             val userId = currentUserId ?: return
             val progresoAnterior = _progresoActual.value ?: 0.0
 
-            // Obtener progreso actual desde la BD
             val resultadoProgreso = repository.getProgresoTiempoReal(userId)
 
             if (resultadoProgreso.isSuccess) {
                 val progresoNuevo = resultadoProgreso.getOrNull() ?: 0.0
 
-                // Solo actualizar si hay cambios significativos (diferencia > 0.01 km)
                 if (kotlin.math.abs(progresoNuevo - progresoAnterior) > 0.01) {
                     Log.d(TAG, "🔄 Progreso actualizado automáticamente: $progresoAnterior → $progresoNuevo km")
 
-                    // Recargar datos completos
                     val resultMeta = repository.getMetaDiariaActual(userId)
                     if (resultMeta.isSuccess) {
                         val metaActualizada = resultMeta.getOrNull()!!
@@ -156,7 +159,6 @@ class MetaDiariaViewModel : ViewModel() {
                         actualizarDatosBasicos(metaActualizada)
                         actualizarVisualizacionDinamica(metaActualizada)
 
-                        // Notificar que se actualizó automáticamente
                         _progresoActualizadoAutomaticamente.value = true
                     }
                 }
@@ -203,7 +205,11 @@ class MetaDiariaViewModel : ViewModel() {
         val mensaje = generarMensajeMeta(meta.porcentajeCompletado)
         _mensajeMeta.value = mensaje
 
+        // ✅ NOTIFICAR AL DASHBOARD CON EL PROGRESO ACTUALIZADO
+        onProgressUpdatedCallback?.invoke(meta.porcentajeCompletado)
+
         Log.d(TAG, "Mensaje generado: $mensaje")
+        Log.d(TAG, "Dashboard notificado con progreso: ${meta.porcentajeCompletado}%")
     }
 
     private fun actualizarVisualizacionDinamica(meta: MetaDiaria) {
