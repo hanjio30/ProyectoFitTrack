@@ -87,6 +87,15 @@ class DashboardViewModel : ViewModel() {
 
             _isLoading.value = true
 
+            // ✅ ESTABLECER VALORES INICIALES LIMPIOS
+            _hydrationValue.value = "0.0 lit."
+            _caloriesValue.value = "0 kcal"
+            _activityValue.value = "0 min"
+            _stepsValue.value = "0"
+            _streakValue.value = "0 días"
+            _distanceValue.value = "0.0 km"
+            _goalValue.value = "0%"
+
             if (!userName.isNullOrEmpty()) {
                 setupUserData(userName)
             } else {
@@ -234,9 +243,13 @@ class DashboardViewModel : ViewModel() {
                 .addOnSuccessListener { document ->
                     try {
                         if (document.exists()) {
-                            val litros = document.getDouble("litros") ?: 0.0
-                            Log.d(TAG, "✓ Hidratación encontrada en Firestore: ${litros}L")
-                            callback(litros)
+                            val litrosRaw = document.getDouble("litros") ?: 0.0
+
+                            // ✅ REDONDEAR A 1 DECIMAL PARA EVITAR NÚMEROS GIGANTES
+                            val litrosFormatted = String.format("%.1f", litrosRaw).toDouble()
+
+                            Log.d(TAG, "✓ Hidratación encontrada - Raw: $litrosRaw, Formatted: $litrosFormatted")
+                            callback(litrosFormatted)
                         } else {
                             Log.d(TAG, "No hay datos de hidratación para hoy, usando 0.0L")
                             callback(0.0)
@@ -261,18 +274,23 @@ class DashboardViewModel : ViewModel() {
             _caloriesValue.value = "${userStats.calories} kcal"
             _activityValue.value = "${userStats.activityMinutes} min"
             _stepsValue.value = userStats.steps.toString()
-            _hydrationValue.value = "${userStats.hydrationLiters} lit."  // ✅ AHORA MOSTRARÁ EL VALOR REAL
+
+            // ✅ FORMATEAR HIDRATACIÓN A 1 DECIMAL
+            val formattedHydration = String.format("%.1f", userStats.hydrationLiters)
+            _hydrationValue.value = "$formattedHydration lit."
+
             _streakValue.value = "${userStats.streak} días"
             _distanceValue.value = "${userStats.distanceKm} km"
             _goalValue.value = "${userStats.goalProgress}%"
 
             _isLoading.value = false
-            Log.d(TAG, "Estadísticas configuradas - Hidratación: ${userStats.hydrationLiters}L")
+            Log.d(TAG, "Estadísticas configuradas - Hidratación: ${formattedHydration}L")
         } catch (e: Exception) {
             Log.e(TAG, "Error en setupStatsData: ${e.message}", e)
             setupDefaultStats()
         }
     }
+
 
     // ✅ ACTUALIZAR FUNCIÓN PARA ACEPTAR HIDRATACIÓN REAL
     private fun setupDefaultStats(realHydration: Double = 0.0) {
@@ -280,13 +298,17 @@ class DashboardViewModel : ViewModel() {
             _caloriesValue.value = "25 kcal"
             _activityValue.value = "45 min"
             _stepsValue.value = "58"
-            _hydrationValue.value = "${realHydration} lit."  // ✅ USAR HIDRATACIÓN REAL
+
+            // ✅ FORMATEAR HIDRATACIÓN A 1 DECIMAL
+            val formattedHydration = String.format("%.1f", realHydration)
+            _hydrationValue.value = "$formattedHydration lit."
+
             _streakValue.value = "20 días"
             _distanceValue.value = "1.5 km"
             _goalValue.value = "75%"
 
             _isLoading.value = false
-            Log.d(TAG, "Datos de ejemplo configurados con hidratación real: ${realHydration}L")
+            Log.d(TAG, "Datos de ejemplo configurados con hidratación real: ${formattedHydration}L")
         } catch (e: Exception) {
             Log.e(TAG, "Error en setupDefaultStats: ${e.message}", e)
             handleError("Error al configurar estadísticas")
@@ -306,8 +328,11 @@ class DashboardViewModel : ViewModel() {
     // ✅ NUEVA FUNCIÓN PARA ACTUALIZAR SOLO LA HIDRATACIÓN
     fun updateHydrationValue(liters: Double) {
         try {
-            Log.d(TAG, "Actualizando valor de hidratación en dashboard: ${liters}L")
-            _hydrationValue.value = "${liters} lit."
+            // ✅ FORMATEAR A 1 DECIMAL
+            val formattedLiters = String.format("%.1f", liters)
+            _hydrationValue.value = "$formattedLiters lit."
+
+            Log.d(TAG, "Actualizando valor de hidratación en dashboard: ${formattedLiters}L")
         } catch (e: Exception) {
             Log.e(TAG, "Error al actualizar hidratación: ${e.message}", e)
         }

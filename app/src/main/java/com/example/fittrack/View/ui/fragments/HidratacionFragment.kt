@@ -65,15 +65,17 @@ class HidratacionFragment : Fragment() {
         try {
             Log.d(TAG, "=== CONFIGURANDO VISTAS ===")
 
-            // ✅ OCULTAR ELEMENTOS DE NAVEGACIÓN DEL CONTENTACTIVITY
             hideContentActivityNavigation()
-
             initializeViewModel()
             initializeViews(view)
             setupHeader()
             setupRecyclerView()
             setupObservers()
-            viewModel.diagnosticFirestorePermissions()
+
+
+            // ✅ HACER DEBUG AUTOMÁTICO AL INICIAR
+            viewModel.debugCompletedReminders()
+
             loadData()
 
             Log.d(TAG, "=== HidratacionFragment CONFIGURADO EXITOSAMENTE ===")
@@ -195,6 +197,10 @@ class HidratacionFragment : Fragment() {
             Log.e(TAG, "Error al manejar indicador de carga: ${e.message}", e)
         }
     }
+
+
+
+
 
     private fun setupObservers() {
         try {

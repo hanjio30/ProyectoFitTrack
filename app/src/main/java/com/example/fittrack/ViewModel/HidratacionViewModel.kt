@@ -85,39 +85,22 @@ class HidratacionViewModel : ViewModel() {
                     if (document.exists()) {
                         val litros = document.getDouble("litros") ?: 0.0
 
-                        // ✅ ASEGURAR QUE EL VALOR SE MUESTRE CORRECTAMENTE
+                        // Actualizar UI con hidratación
                         _currentHydration.value = String.format("%.1f L", litros)
                         val porcentaje = ((litros / 2.5) * 100).toInt().coerceAtMost(100)
                         _waterGlassLevel.value = porcentaje
 
                         Log.d(TAG, "✅ Datos principales cargados: ${litros}L (${porcentaje}%)")
 
-                        // ✅ OBTENER RECORDATORIOS COMPLETADOS DEL DOCUMENTO PRINCIPAL
-                        val completedReminderIds = if (document.contains("recordatoriosCompletados")) {
-                            val completedData = document.get("recordatoriosCompletados") as? List<*> ?: emptyList<Any>()
-                            completedData.mapNotNull { item ->
-                                when (item) {
-                                    is Long -> item.toInt()
-                                    is Int -> item
-                                    is String -> item.toIntOrNull()
-                                    else -> null
-                                }
-                            }.toSet()
-                        } else {
-                            emptySet<Int>()
-                        }
-
-                        Log.d(TAG, "Recordatorios completados desde documento principal: $completedReminderIds")
-
-                        // Cargar datos mock con estados aplicados
-                        loadMockDataWithCompletedStates(completedReminderIds)
+                        // ✅ BUSCAR RECORDATORIOS COMPLETADOS EN AMBOS LUGARES
+                        loadCompletedRemindersFromBothSources(uid, fecha, document)
 
                     } else {
                         Log.d(TAG, "No hay datos principales, iniciando en 0")
                         _currentHydration.value = "0.0 L"
                         _waterGlassLevel.value = 0
 
-                        // Cargar recordatorios de la subcolección
+                        // Buscar solo en subcolección
                         loadCompletedReminders(uid, fecha)
                     }
 
@@ -132,6 +115,79 @@ class HidratacionViewModel : ViewModel() {
                 _errorMessage.value = "Error de conexión: ${exception.message}"
                 loadCompletedReminders(uid, fecha)
             }
+    }
+
+
+    private fun loadCompletedRemindersFromBothSources(uid: String, fecha: String, mainDocument: com.google.firebase.firestore.DocumentSnapshot) {
+        Log.d(TAG, "=== BUSCANDO RECORDATORIOS EN AMBAS FUENTES ===")
+
+        try {
+            // Primero, obtener recordatorios del documento principal
+            val completedFromMain = if (mainDocument.contains("recordatoriosCompletados")) {
+                val completedData = mainDocument.get("recordatoriosCompletados") as? List<*> ?: emptyList<Any>()
+                completedData.mapNotNull { item ->
+                    when (item) {
+                        is Long -> item.toInt()
+                        is Int -> item
+                        is String -> item.toIntOrNull()
+                        else -> null
+                    }
+                }.toSet()
+            } else {
+                emptySet<Int>()
+            }
+
+            Log.d(TAG, "Recordatorios desde documento principal: $completedFromMain")
+
+            // Luego, buscar en subcolección para tener datos completos
+            db.collection("users").document(uid)
+                .collection("hidratacion").document(fecha)
+                .collection("recordatorios")
+                .get()
+                .addOnSuccessListener { querySnapshot ->
+                    try {
+                        val completedFromSubcollection = mutableSetOf<Int>()
+
+                        Log.d(TAG, "Subcolección obtenida. Documentos: ${querySnapshot.size()}")
+
+                        for (document in querySnapshot.documents) {
+                            val reminderId = document.id.toIntOrNull()
+                            val completado = document.getBoolean("completado") ?: false
+
+                            Log.d(TAG, "Subcolección - Doc: ${document.id}, reminderId: $reminderId, completado: $completado")
+
+                            if (reminderId != null && completado) {
+                                completedFromSubcollection.add(reminderId)
+                            }
+                        }
+
+                        // ✅ COMBINAR AMBAS FUENTES (UNIÓN)
+                        val allCompletedReminders = completedFromMain + completedFromSubcollection
+
+                        Log.d(TAG, "=== RESUMEN COMPLETO DE RECORDATORIOS ===")
+                        Log.d(TAG, "Desde documento principal: $completedFromMain")
+                        Log.d(TAG, "Desde subcolección: $completedFromSubcollection")
+                        Log.d(TAG, "TOTAL COMBINADO: $allCompletedReminders")
+
+                        // Aplicar estados
+                        loadMockDataWithCompletedStates(allCompletedReminders)
+
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error al procesar subcolección: ${e.message}", e)
+                        // Usar solo datos del documento principal
+                        loadMockDataWithCompletedStates(completedFromMain)
+                    }
+                }
+                .addOnFailureListener { exception ->
+                    Log.e(TAG, "Error al cargar subcolección: ${exception.message}", exception)
+                    // Usar solo datos del documento principal
+                    loadMockDataWithCompletedStates(completedFromMain)
+                }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error en loadCompletedRemindersFromBothSources: ${e.message}", e)
+            loadBasicMockData()
+        }
     }
 
     private fun loadCompletedReminders(uid: String, fecha: String) {
@@ -193,12 +249,12 @@ class HidratacionViewModel : ViewModel() {
             // Crear recordatorios base
             val recordatoriosBase = getBaseReminders()
 
-            // Aplicar estados de completado
+            // ✅ APLICAR ESTADOS DE COMPLETADO CON LOGGING DETALLADO
             val recordatorios = recordatoriosBase.map { recordatorio ->
                 val estaCompletado = completedReminderIds.contains(recordatorio.id)
                 val recordatorioFinal = recordatorio.copy(completado = estaCompletado)
 
-                Log.d(TAG, "Recordatorio ${recordatorio.id}: ${if (estaCompletado) "COMPLETADO ✓" else "PENDIENTE ○"}")
+                Log.d(TAG, "📋 Recordatorio ${recordatorio.id} (${recordatorio.descripcion}): ${if (estaCompletado) "✅ COMPLETADO" else "⏳ PENDIENTE"}")
 
                 recordatorioFinal
             }
@@ -209,9 +265,11 @@ class HidratacionViewModel : ViewModel() {
             loadAdditionalMockData()
 
             _isLoading.value = false
+
             Log.d(TAG, "=== CARGA COMPLETADA EXITOSAMENTE ===")
             Log.d(TAG, "Total recordatorios: ${recordatorios.size}")
             Log.d(TAG, "Recordatorios completados: ${recordatorios.count { it.completado }}")
+            Log.d(TAG, "IDs completados aplicados: ${recordatorios.filter { it.completado }.map { it.id }}")
 
         } catch (e: Exception) {
             Log.e(TAG, "Error al aplicar estados completados: ${e.message}", e)
@@ -355,15 +413,18 @@ class HidratacionViewModel : ViewModel() {
             val currentAmount = getCurrentHydrationAmount()
             val newTotalAmount = currentAmount + (amount / 1000f)
 
-            // 3. Actualizar UI inmediatamente
-            _currentHydration.value = String.format("%.1f L", newTotalAmount)
-            val percentage = ((newTotalAmount / 2.5f) * 100).toInt().coerceAtMost(100)
+            // ✅ REDONDEAR PARA LA UI
+            val roundedAmount = String.format("%.1f", newTotalAmount).toFloat()
+
+            // 3. Actualizar UI inmediatamente con valor redondeado
+            _currentHydration.value = String.format("%.1f L", roundedAmount)
+            val percentage = ((roundedAmount / 2.5f) * 100).toInt().coerceAtMost(100)
             _waterGlassLevel.value = percentage
 
-            // 4. Guardar TODO en Firebase de una sola vez
-            saveCompleteHydrationData(reminderId, newTotalAmount)
+            // 4. Guardar TODO en Firebase con valor redondeado
+            saveCompleteHydrationData(reminderId, roundedAmount)
 
-            Log.d(TAG, "Recordatorio $reminderId completado: +${amount}ml, Total: ${newTotalAmount}L")
+            Log.d(TAG, "Recordatorio $reminderId completado: +${amount}ml, Total: ${roundedAmount}L")
 
         } catch (e: Exception) {
             Log.e(TAG, "Error al completar recordatorio $reminderId: ${e.message}", e)
@@ -382,11 +443,13 @@ class HidratacionViewModel : ViewModel() {
 
         val uid = currentUser.uid
         val fecha = SimpleDateFormat("yyyy_MM_dd", Locale.getDefault()).format(Date())
+        val roundedLiters = String.format("%.1f", totalLiters).toDouble()
 
         Log.d(TAG, "=== GUARDANDO DATOS COMPLETOS DE HIDRATACIÓN ===")
-        Log.d(TAG, "UID: $uid, Fecha: $fecha, Recordatorio: $reminderId, Total: ${totalLiters}L")
+        Log.d(TAG, "UID: $uid, Fecha: $fecha, Recordatorio: $reminderId")
+        Log.d(TAG, "Total redondeado: ${roundedLiters}L")
 
-        // Obtener recordatorios completados actuales
+        // ✅ TRABAJAR SOLO CON LA SUBCOLECCIÓN hidratacion
         db.collection("users").document(uid)
             .collection("hidratacion").document(fecha)
             .get()
@@ -412,32 +475,32 @@ class HidratacionViewModel : ViewModel() {
                         currentCompletedReminders.add(reminderId)
                     }
 
-                    // Preparar datos completos
+                    // ✅ DATOS COMPLETOS PARA LA SUBCOLECCIÓN (SIN tocar documento padre)
                     val completeData = mapOf(
-                        "litros" to totalLiters.toDouble(),
+                        "litros" to roundedLiters,
                         "fecha" to fecha,
                         "recordatoriosCompletados" to currentCompletedReminders,
                         "lastUpdated" to System.currentTimeMillis(),
                         "uid" to uid
                     )
 
-                    Log.d(TAG, "Guardando datos: $completeData")
+                    Log.d(TAG, "Guardando en subcolección hidratacion: $completeData")
 
-                    // Guardar documento principal
+                    // ✅ GUARDAR SOLO EN SUBCOLECCIÓN hidratacion
                     db.collection("users").document(uid)
                         .collection("hidratacion").document(fecha)
                         .set(completeData)
                         .addOnSuccessListener {
-                            Log.d(TAG, "✅ Datos principales guardados exitosamente")
+                            Log.d(TAG, "✅ Datos de hidratación guardados exitosamente")
 
                             // Guardar recordatorio individual también
                             saveIndividualReminder(uid, fecha, reminderId)
 
-                            // Notificar cambio para actualizar dashboard
+                            // Notificar cambio
                             notifyHydrationChanged()
                         }
                         .addOnFailureListener { exception ->
-                            Log.e(TAG, "❌ Error al guardar datos principales: ${exception.message}", exception)
+                            Log.e(TAG, "❌ Error al guardar datos de hidratación: ${exception.message}", exception)
                             _errorMessage.value = "Error al guardar: ${exception.message}"
                         }
 
@@ -565,6 +628,61 @@ class HidratacionViewModel : ViewModel() {
         _errorMessage.value = null
     }
 
+    fun debugCompletedReminders() {
+        val currentUser = auth.currentUser
+        if (currentUser == null) {
+            Log.e(TAG, "DEBUG: No hay usuario autenticado")
+            return
+        }
+
+        val uid = currentUser.uid
+        val fecha = SimpleDateFormat("yyyy_MM_dd", Locale.getDefault()).format(Date())
+
+        Log.d(TAG, "=== DEBUG COMPLETO DE RECORDATORIOS ===")
+        Log.d(TAG, "UID: $uid")
+        Log.d(TAG, "Fecha: $fecha")
+
+        // Debug documento principal
+        db.collection("users").document(uid)
+            .collection("hidratacion").document(fecha)
+            .get()
+            .addOnSuccessListener { document ->
+                Log.d(TAG, "📄 DOCUMENTO PRINCIPAL:")
+                Log.d(TAG, "   Existe: ${document.exists()}")
+                if (document.exists()) {
+                    Log.d(TAG, "   Litros: ${document.getDouble("litros")}")
+                    Log.d(TAG, "   Recordatorios completados: ${document.get("recordatoriosCompletados")}")
+                    Log.d(TAG, "   Datos completos: ${document.data}")
+                }
+
+                // Debug subcolección
+                db.collection("users").document(uid)
+                    .collection("hidratacion").document(fecha)
+                    .collection("recordatorios")
+                    .get()
+                    .addOnSuccessListener { querySnapshot ->
+                        Log.d(TAG, "📁 SUBCOLECCIÓN RECORDATORIOS:")
+                        Log.d(TAG, "   Total documentos: ${querySnapshot.size()}")
+
+                        for (doc in querySnapshot.documents) {
+                            Log.d(TAG, "   📝 Doc ${doc.id}: ${doc.data}")
+                        }
+
+                        Log.d(TAG, "=== FIN DEBUG ===")
+                    }
+            }
+    }
+
+    fun forceReloadReminders() {
+        Log.d(TAG, "=== FORZANDO RECARGA DE RECORDATORIOS ===")
+        val currentUser = auth.currentUser
+        if (currentUser != null) {
+            val fecha = SimpleDateFormat("yyyy_MM_dd", Locale.getDefault()).format(Date())
+            loadMainHydrationData(currentUser.uid, fecha)
+        }
+    }
+
+
     fun debugFirebaseConnection() {
         val currentUser = auth.currentUser
         Log.d(TAG, "=== DEBUG FIREBASE CONNECTION ===")
@@ -616,27 +734,41 @@ class HidratacionViewModel : ViewModel() {
         Log.d(TAG, "Auth UID: ${currentUser.uid}")
         Log.d(TAG, "Email: ${currentUser.email}")
 
-        // Test 1: Escribir en documento principal de usuario
-        Log.d(TAG, "TEST 1: Escribiendo en documento principal del usuario...")
+        // ✅ TEST 1: NO TOCAR el documento principal del usuario, solo leerlo
+        Log.d(TAG, "TEST 1: Leyendo documento principal del usuario...")
         db.collection("users").document(uid)
-            .set(mapOf("testField" to "test", "timestamp" to System.currentTimeMillis()))
-            .addOnSuccessListener {
-                Log.d(TAG, "✓ TEST 1: Escritura en documento principal EXITOSA")
+            .get()
+            .addOnSuccessListener { userDoc ->
+                Log.d(TAG, "✓ TEST 1: Lectura de documento principal EXITOSA")
+                Log.d(TAG, "   Documento existe: ${userDoc.exists()}")
+                if (userDoc.exists()) {
+                    Log.d(TAG, "   Campos: ${userDoc.data?.keys}")
+                }
 
-                // Test 2: Escribir en subcolección hidratacion
+                // ✅ TEST 2: Escribir directamente en subcolección hidratacion (SIN tocar documento padre)
                 Log.d(TAG, "TEST 2: Escribiendo en subcolección hidratacion...")
                 db.collection("users").document(uid)
                     .collection("hidratacion").document(fecha)
-                    .set(mapOf("litros" to 0.5, "fecha" to fecha, "timestamp" to System.currentTimeMillis()))
+                    .set(mapOf(
+                        "litros" to 0.0,
+                        "fecha" to fecha,
+                        "recordatoriosCompletados" to emptyList<Int>(),
+                        "lastUpdated" to System.currentTimeMillis(),
+                        "uid" to uid
+                    ))
                     .addOnSuccessListener {
                         Log.d(TAG, "✓ TEST 2: Escritura en hidratacion EXITOSA")
 
-                        // Test 3: Escribir en subcolección recordatorios
+                        // ✅ TEST 3: Escribir en subcolección recordatorios
                         Log.d(TAG, "TEST 3: Escribiendo en subcolección recordatorios...")
                         db.collection("users").document(uid)
                             .collection("hidratacion").document(fecha)
                             .collection("recordatorios").document("test")
-                            .set(mapOf("completado" to true, "reminderId" to 999, "timestamp" to System.currentTimeMillis()))
+                            .set(mapOf(
+                                "completado" to false,
+                                "reminderId" to 999,
+                                "timestamp" to System.currentTimeMillis()
+                            ))
                             .addOnSuccessListener {
                                 Log.d(TAG, "✓ TEST 3: Escritura en recordatorios EXITOSA")
                                 Log.d(TAG, "=== TODOS LOS TESTS PASARON ===")
@@ -650,23 +782,13 @@ class HidratacionViewModel : ViewModel() {
                     }
             }
             .addOnFailureListener { exception ->
-                Log.e(TAG, "✗ TEST 1: Error en documento principal: ${exception.message}", exception)
+                Log.e(TAG, "✗ TEST 1: Error al leer documento principal: ${exception.message}", exception)
             }
 
-        // Test adicional: Verificar estructura de auth
+        // ✅ Información adicional sin modificar datos
         Log.d(TAG, "=== INFORMACIÓN DE AUTENTICACIÓN ===")
         Log.d(TAG, "Usuario autenticado: ${auth.currentUser != null}")
-        Log.d(TAG, "Token válido: ${auth.currentUser?.getIdToken(false)}")
-
-        // Test de lectura
-        Log.d(TAG, "TEST LECTURA: Intentando leer documento de usuario...")
-        db.collection("users").document(uid).get()
-            .addOnSuccessListener { document ->
-                Log.d(TAG, "✓ LECTURA: Documento leído exitosamente. Existe: ${document.exists()}")
-            }
-            .addOnFailureListener { exception ->
-                Log.e(TAG, "✗ LECTURA: Error al leer documento: ${exception.message}", exception)
-            }
+        Log.d(TAG, "UID válido: ${auth.currentUser?.uid}")
     }
 
     fun resetDailyProgress() {
@@ -684,15 +806,17 @@ class HidratacionViewModel : ViewModel() {
                 val uid = currentUser.uid
                 val fecha = SimpleDateFormat("yyyy_MM_dd", Locale.getDefault()).format(Date())
 
-                Log.d(TAG, "Reseteando datos en Firebase - UID: $uid, Fecha: $fecha")
+                Log.d(TAG, "Reseteando SOLO datos de hidratación - UID: $uid, Fecha: $fecha")
 
-                db.collection("users").document(uid).collection("hidratacion").document(fecha)
+                // ✅ ELIMINAR SOLO EL DOCUMENTO DE HIDRATACIÓN, NO EL USUARIO
+                db.collection("users").document(uid)
+                    .collection("hidratacion").document(fecha)
                     .delete()
                     .addOnSuccessListener {
-                        Log.d(TAG, "✓ Datos de Firebase reseteados")
+                        Log.d(TAG, "✓ Datos de hidratación reseteados (documento padre intacto)")
                     }
                     .addOnFailureListener { exception ->
-                        Log.e(TAG, "✗ Error al resetear Firebase: ${exception.message}")
+                        Log.e(TAG, "✗ Error al resetear hidratación: ${exception.message}")
                     }
             }
 
