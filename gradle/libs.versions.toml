@@ -21,6 +21,7 @@ cardview = "1.0.0"
 circleimageview = "3.1.0"
 glide = "4.16.0"
 firebaseFirestoreKtx = "26.0.0"
+swiperefreshlayout = "1.1.0"
 
 
 [libraries]
@@ -45,6 +46,7 @@ circleimageview = { module = "de.hdodenhof:circleimageview", version.ref = "circ
 glide = { module = "com.github.bumptech.glide:glide", version.ref = "glide" }
 glideCompiler = { module = "com.github.bumptech.glide:compiler", version.ref = "glide" }
 firebase-firestore-ktx = { group = "com.google.firebase", name = "firebase-firestore-ktx", version.ref = "firebaseFirestoreKtx" }
+androidx-swiperefreshlayout = { group = "androidx.swiperefreshlayout", name = "swiperefreshlayout", version.ref = "swiperefreshlayout" }
 
 
 [plugins]
