@@ -14,6 +14,7 @@ import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -23,7 +24,7 @@ class DashboardViewModel : ViewModel() {
     private val firebaseAuth: FirebaseAuth = FirebaseAuth.getInstance()
     private val databaseReference: DatabaseReference = FirebaseDatabase.getInstance().getReference()
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
-    private val recorridoRepository = RecorridoRepository() // ✅ AGREGAR REPOSITORY
+    private val recorridoRepository = RecorridoRepository()
 
     // LiveData para la UI
     private val _userName = MutableLiveData<String>()
@@ -64,6 +65,9 @@ class DashboardViewModel : ViewModel() {
 
     companion object {
         private const val TAG = "DashboardViewModel"
+        private const val COLLECTION_USERS = "users"
+        private const val COLLECTION_RACHA_DATA = "rachaData"
+        private const val COLLECTION_METAS = "metas"
     }
 
     // Data classes para los modelos
@@ -83,7 +87,6 @@ class DashboardViewModel : ViewModel() {
         val uid: String = ""
     )
 
-    // ✅ NUEVA DATA CLASS PARA ESTADÍSTICAS DE RECORRIDOS
     data class RecorridoStats(
         val totalCalorias: Int = 0,
         val totalMinutos: Int = 0,
@@ -97,7 +100,7 @@ class DashboardViewModel : ViewModel() {
 
             _isLoading.value = true
 
-            // ✅ ESTABLECER VALORES INICIALES LIMPIOS
+            // Establecer valores iniciales limpios
             _hydrationValue.value = "0.0 lit."
             _caloriesValue.value = "0 kcal"
             _activityValue.value = "0 min"
@@ -201,44 +204,49 @@ class DashboardViewModel : ViewModel() {
                 if (currentUser != null) {
                     Log.d(TAG, "Cargando estadísticas del usuario")
 
-                    // ✅ CARGAR ESTADÍSTICAS DE RECORRIDOS PRIMERO
+                    // Cargar estadísticas de recorridos primero
                     loadRecorridosStats(currentUser.uid) { recorridoStats ->
 
-                        // Luego cargar hidratación desde Firestore
-                        loadHydrationFromFirestore(currentUser.uid) { hydrationLiters ->
+                        // Cargar datos de racha
+                        loadStreakData(currentUser.uid) { streakDays ->
 
-                            // Finalmente cargar el resto de estadísticas desde Realtime Database
-                            databaseReference.child("userStats").child(currentUser.uid)
-                                .addListenerForSingleValueEvent(object : ValueEventListener {
-                                    override fun onDataChange(snapshot: DataSnapshot) {
-                                        try {
-                                            if (snapshot.exists()) {
-                                                val userStats = snapshot.getValue(UserStats::class.java) ?: UserStats()
+                            // Luego cargar hidratación desde Firestore
+                            loadHydrationFromFirestore(currentUser.uid) { hydrationLiters ->
 
-                                                // ✅ COMBINAR DATOS DE RECORRIDOS CON STATS EXISTENTES
-                                                val updatedStats = userStats.copy(
-                                                    hydrationLiters = hydrationLiters,
-                                                    calories = recorridoStats.totalCalorias,
-                                                    activityMinutes = recorridoStats.totalMinutos,
-                                                    steps = recorridoStats.totalPasos,
-                                                    distanceKm = recorridoStats.totalDistanciaKm
-                                                )
-                                                setupStatsData(updatedStats)
-                                            } else {
-                                                Log.d(TAG, "No hay estadísticas, usando datos de recorridos")
-                                                setupStatsFromRecorridos(recorridoStats, hydrationLiters)
+                                // Finalmente cargar el resto de estadísticas desde Realtime Database
+                                databaseReference.child("userStats").child(currentUser.uid)
+                                    .addListenerForSingleValueEvent(object : ValueEventListener {
+                                        override fun onDataChange(snapshot: DataSnapshot) {
+                                            try {
+                                                if (snapshot.exists()) {
+                                                    val userStats = snapshot.getValue(UserStats::class.java) ?: UserStats()
+
+                                                    // Combinar datos de recorridos con stats existentes
+                                                    val updatedStats = userStats.copy(
+                                                        hydrationLiters = hydrationLiters,
+                                                        calories = recorridoStats.totalCalorias,
+                                                        activityMinutes = recorridoStats.totalMinutos,
+                                                        steps = recorridoStats.totalPasos,
+                                                        distanceKm = recorridoStats.totalDistanciaKm,
+                                                        streak = streakDays // ✅ USAR DÍAS DE RACHA REALES
+                                                    )
+                                                    setupStatsData(updatedStats)
+                                                } else {
+                                                    Log.d(TAG, "No hay estadísticas, usando datos de recorridos")
+                                                    setupStatsFromRecorridos(recorridoStats, hydrationLiters, streakDays)
+                                                }
+                                            } catch (e: Exception) {
+                                                Log.e(TAG, "Error al procesar estadísticas: ${e.message}", e)
+                                                setupStatsFromRecorridos(recorridoStats, hydrationLiters, streakDays)
                                             }
-                                        } catch (e: Exception) {
-                                            Log.e(TAG, "Error al procesar estadísticas: ${e.message}", e)
-                                            setupStatsFromRecorridos(recorridoStats, hydrationLiters)
                                         }
-                                    }
 
-                                    override fun onCancelled(error: DatabaseError) {
-                                        Log.e(TAG, "Error al cargar estadísticas: ${error.message}")
-                                        setupStatsFromRecorridos(recorridoStats, hydrationLiters)
-                                    }
-                                })
+                                        override fun onCancelled(error: DatabaseError) {
+                                            Log.e(TAG, "Error al cargar estadísticas: ${error.message}")
+                                            setupStatsFromRecorridos(recorridoStats, hydrationLiters, streakDays)
+                                        }
+                                    })
+                            }
                         }
                     }
                 } else {
@@ -251,13 +259,102 @@ class DashboardViewModel : ViewModel() {
         }
     }
 
-    // ✅ FUNCIÓN MEJORADA PARA CARGAR ESTADÍSTICAS DE RECORRIDOS DE HOY
+    // ✅ NUEVA FUNCIÓN PARA CARGAR DATOS DE RACHA DESDE FIRESTORE
+    private fun loadStreakData(uid: String, callback: (Int) -> Unit) {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "=== CARGANDO DATOS DE RACHA DESDE FIRESTORE ===")
+
+                // Cargar datos de racha guardados
+                val rachaDoc = firestore.collection(COLLECTION_USERS)
+                    .document(uid)
+                    .collection(COLLECTION_RACHA_DATA)
+                    .document("current")
+                    .get()
+                    .await()
+
+                if (rachaDoc.exists()) {
+                    val currentStreak = rachaDoc.getLong("currentStreak")?.toInt() ?: 0
+                    Log.d(TAG, "✓ Racha actual desde Firestore: $currentStreak días")
+                    callback(currentStreak)
+                } else {
+                    Log.d(TAG, "No hay datos de racha, calculando desde metas...")
+                    // Si no hay datos de racha, calcular desde las metas
+                    calculateStreakFromMetas(uid, callback)
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error al cargar datos de racha: ${e.message}", e)
+                // En caso de error, intentar calcular desde metas
+                calculateStreakFromMetas(uid, callback)
+            }
+        }
+    }
+
+    // ✅ FUNCIÓN PARA CALCULAR RACHA DESDE METAS (FALLBACK)
+    private suspend fun calculateStreakFromMetas(uid: String, callback: (Int) -> Unit) {
+        try {
+            Log.d(TAG, "Calculando racha desde metas diarias...")
+
+            val calendar = Calendar.getInstance()
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            var consecutiveDays = 0
+
+            // Verificar días consecutivos hacia atrás desde hoy
+            for (i in 0 until 30) { // Verificar últimos 30 días máximo
+                val currentDate = dateFormat.format(calendar.time)
+
+                val hasCompletedMeta = checkMetaCompletedForDate(uid, currentDate)
+
+                if (hasCompletedMeta) {
+                    consecutiveDays++
+                    calendar.add(Calendar.DAY_OF_YEAR, -1)
+                } else {
+                    // Si es el día actual (i == 0), no romper la racha aún
+                    if (i == 0) {
+                        calendar.add(Calendar.DAY_OF_YEAR, -1)
+                        continue
+                    }
+                    break
+                }
+            }
+
+            Log.d(TAG, "✓ Racha calculada desde metas: $consecutiveDays días")
+            callback(consecutiveDays)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al calcular racha desde metas: ${e.message}", e)
+            callback(0)
+        }
+    }
+
+    // ✅ FUNCIÓN PARA VERIFICAR SI SE COMPLETÓ META EN UNA FECHA
+    private suspend fun checkMetaCompletedForDate(uid: String, date: String): Boolean {
+        return try {
+            val metas = firestore.collection(COLLECTION_USERS)
+                .document(uid)
+                .collection(COLLECTION_METAS)
+                .whereEqualTo("fecha", date)
+                .get()
+                .await()
+
+            // Verificar si hay al menos una meta completada al 100%
+            metas.documents.any { doc ->
+                val porcentaje = doc.getLong("porcentajeCompletado")?.toInt() ?: 0
+                porcentaje >= 100
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al verificar meta para fecha $date: ${e.message}", e)
+            false
+        }
+    }
+
     private fun loadRecorridosStats(uid: String, callback: (RecorridoStats) -> Unit) {
         viewModelScope.launch {
             try {
                 Log.d(TAG, "=== CARGANDO ESTADÍSTICAS DE RECORRIDOS DE HOY ===")
 
-                // Usar la nueva función para obtener estadísticas diarias
                 val result = recorridoRepository.obtenerEstadisticasDiarias(uid)
 
                 result.onSuccess { estadisticas ->
@@ -276,18 +373,18 @@ class DashboardViewModel : ViewModel() {
 
                 result.onFailure { exception ->
                     Log.e(TAG, "Error al obtener estadísticas diarias: ${exception.message}", exception)
-                    callback(RecorridoStats()) // Stats vacías
+                    callback(RecorridoStats())
                 }
 
             } catch (e: Exception) {
                 Log.e(TAG, "Error en loadRecorridosStats: ${e.message}", e)
-                callback(RecorridoStats()) // Stats vacías
+                callback(RecorridoStats())
             }
         }
     }
 
-    // ✅ NUEVA FUNCIÓN PARA CONFIGURAR STATS DESDE RECORRIDOS
-    private fun setupStatsFromRecorridos(recorridoStats: RecorridoStats, hydrationLiters: Double) {
+    // ✅ FUNCIÓN ACTUALIZADA PARA INCLUIR DÍAS DE RACHA
+    private fun setupStatsFromRecorridos(recorridoStats: RecorridoStats, hydrationLiters: Double, streakDays: Int) {
         try {
             _caloriesValue.value = "${recorridoStats.totalCalorias} kcal"
             _activityValue.value = "${recorridoStats.totalMinutos} min"
@@ -297,12 +394,13 @@ class DashboardViewModel : ViewModel() {
             val formattedHydration = String.format("%.1f", hydrationLiters)
             _hydrationValue.value = "$formattedHydration lit."
 
-            _streakValue.value = "20 días" // Mantener valor por defecto por ahora
+            // ✅ USAR DÍAS DE RACHA REALES
+            _streakValue.value = "$streakDays días"
             _distanceValue.value = String.format("%.1f km", recorridoStats.totalDistanciaKm)
             _goalValue.value = "75%" // Mantener valor por defecto por ahora
 
             _isLoading.value = false
-            Log.d(TAG, "Estadísticas de recorridos configuradas")
+            Log.d(TAG, "Estadísticas configuradas - Racha: $streakDays días")
         } catch (e: Exception) {
             Log.e(TAG, "Error en setupStatsFromRecorridos: ${e.message}", e)
             setupDefaultStats()
@@ -354,12 +452,13 @@ class DashboardViewModel : ViewModel() {
             val formattedHydration = String.format("%.1f", userStats.hydrationLiters)
             _hydrationValue.value = "$formattedHydration lit."
 
+            // ✅ USAR DÍAS DE RACHA DESDE USERDATA
             _streakValue.value = "${userStats.streak} días"
             _distanceValue.value = String.format("%.1f km", userStats.distanceKm)
             _goalValue.value = "${userStats.goalProgress}%"
 
             _isLoading.value = false
-            Log.d(TAG, "Estadísticas configuradas - Hidratación: ${formattedHydration}L")
+            Log.d(TAG, "Estadísticas configuradas - Racha: ${userStats.streak} días")
         } catch (e: Exception) {
             Log.e(TAG, "Error en setupStatsData: ${e.message}", e)
             setupDefaultStats()
@@ -405,6 +504,16 @@ class DashboardViewModel : ViewModel() {
             Log.d(TAG, "Actualizando valor de hidratación en dashboard: ${formattedLiters}L")
         } catch (e: Exception) {
             Log.e(TAG, "Error al actualizar hidratación: ${e.message}", e)
+        }
+    }
+
+    // ✅ NUEVA FUNCIÓN PARA ACTUALIZAR SOLO LA RACHA
+    fun updateStreakValue(streakDays: Int) {
+        try {
+            _streakValue.value = "$streakDays días"
+            Log.d(TAG, "Actualizando valor de racha en dashboard: $streakDays días")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al actualizar racha: ${e.message}", e)
         }
     }
 

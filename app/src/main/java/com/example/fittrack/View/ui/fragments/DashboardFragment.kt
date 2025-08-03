@@ -365,6 +365,20 @@ class DashboardFragment : Fragment() {
         }
     }
 
+    // ✅ NUEVA FUNCIÓN PARA ACTUALIZAR SOLO LA RACHA
+    fun updateStreak(streakDays: Int) {
+        try {
+            Log.d(TAG, "📊 Actualizando racha desde fragment: ${streakDays} días")
+            if (::dashboardViewModel.isInitialized) {
+                dashboardViewModel.updateStreakValue(streakDays)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al actualizar racha: ${e.message}", e)
+        }
+    }
+
+
+
     override fun onResume() {
         super.onResume()
         Log.d(TAG, "DashboardFragment onResume")
