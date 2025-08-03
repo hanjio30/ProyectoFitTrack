@@ -19,6 +19,8 @@ import com.example.fittrack.view.ui.components.HeaderCardView
 import com.example.fittrack.ViewModel.HidratacionViewModel
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.example.fittrack.View.ui.adapters.HydrationRemindersAdapter
+import java.util.Timer
+import java.util.TimerTask
 
 class HidratacionFragment : Fragment() {
 
@@ -36,8 +38,12 @@ class HidratacionFragment : Fragment() {
     // Adapter para RecyclerView
     private var hydrationAdapter: HydrationRemindersAdapter? = null
 
+    // Timer para actualización automática
+    private var updateTimer: Timer? = null
+
     companion object {
         private const val TAG = "HidratacionFragment"
+        private const val UPDATE_INTERVAL_MS = 60000L // 1 minuto
     }
 
     override fun onCreateView(
@@ -132,16 +138,61 @@ class HidratacionFragment : Fragment() {
         try {
             rvHydrationReminders?.layoutManager = LinearLayoutManager(context)
 
-            // Crear adapter con callback para cuando se complete un recordatorio
-            hydrationAdapter = HydrationRemindersAdapter { reminderId ->
-                // Callback cuando se completa un recordatorio
-                viewModel.completeReminder(reminderId)
-            }
+            // ✅ CORRECCIÓN: Pasar los 3 parámetros requeridos
+            hydrationAdapter = HydrationRemindersAdapter(
+                reminders = emptyList(),
+                onReminderCompleted = { reminderId ->
+                    Log.d(TAG, "Callback recibido para completar recordatorio: $reminderId")
+                    viewModel.completeReminder(reminderId)
+                },
+                viewModel = viewModel // ← AGREGAR ESTE PARÁMETRO
+            )
 
             rvHydrationReminders?.adapter = hydrationAdapter
-            Log.d(TAG, "RecyclerView y Adapter configurados")
+            Log.d(TAG, "RecyclerView y Adapter configurados exitosamente")
+
         } catch (e: Exception) {
             Log.e(TAG, "Error al configurar RecyclerView: ${e.message}", e)
+        }
+    }
+
+    // Método helper para actualizar la imagen del vaso según el nivel
+    private fun updateWaterGlassImage(level: Int) {
+        try {
+            ivWaterGlass?.let { imageView ->
+                // Ejemplo de cómo cambiar la imagen según el nivel
+                when {
+                    level >= 100 -> imageView.setImageResource(R.drawable.ic_water_glass_full)
+                    level >= 75 -> imageView.setImageResource(R.drawable.ic_water_glass_three_quarter)
+                    level >= 50 -> imageView.setImageResource(R.drawable.ic_water_glass_half)
+                    level >= 25 -> imageView.setImageResource(R.drawable.ic_water_glass_quarter)
+                    else -> imageView.setImageResource(R.drawable.ic_water_glass)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al actualizar imagen del vaso: ${e.message}", e)
+        }
+    }
+
+    // Método helper para mostrar errores al usuario
+    private fun showErrorToUser(error: String) {
+        try {
+            // Usando Toast (puedes cambiar por Snackbar si prefieres)
+            android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al mostrar mensaje de error: ${e.message}", e)
+        }
+    }
+
+    // Método helper para mostrar/ocultar indicador de carga
+    private fun showLoadingIndicator(isLoading: Boolean) {
+        try {
+            // Si tienes un ProgressBar, puedes mostrarlo/ocultarlo aquí
+            // progressBar?.visibility = if (isLoading) View.VISIBLE else View.GONE
+
+            Log.d(TAG, if (isLoading) "Mostrando indicador de carga" else "Ocultando indicador de carga")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al manejar indicador de carga: ${e.message}", e)
         }
     }
 
@@ -149,37 +200,56 @@ class HidratacionFragment : Fragment() {
         try {
             viewModel.currentHydration.observe(viewLifecycleOwner) { hydration ->
                 tvCurrentHydration?.text = hydration
+                Log.d(TAG, "Hidratación actual actualizada: $hydration")
             }
 
             viewModel.dailyGoal.observe(viewLifecycleOwner) { goal ->
                 tvDailyGoal?.text = goal
+                Log.d(TAG, "Meta diaria actualizada: $goal")
             }
 
             viewModel.dailyTip.observe(viewLifecycleOwner) { tip ->
                 tvTipDescription?.text = tip
+                Log.d(TAG, "Tip diario actualizado")
             }
 
             viewModel.hydrationReminders.observe(viewLifecycleOwner) { reminders ->
+                Log.d(TAG, "Recordatorios recibidos: ${reminders.size}")
+
                 // Actualizar el adapter del RecyclerView
                 hydrationAdapter?.updateReminders(reminders)
-                Log.d(TAG, "Recordatorios recibidos: ${reminders.size}")
+
+                // Log detallado de los recordatorios
+                reminders.forEachIndexed { index, reminder ->
+                    Log.d(TAG, "Recordatorio $index: (${reminder.hora}) - ${if (reminder.completado) "✓" else "○"}")
+                }
             }
 
             viewModel.waterGlassLevel.observe(viewLifecycleOwner) { level ->
                 // Aquí podrías cambiar la imagen del vaso según el nivel
                 Log.d(TAG, "Nivel de agua: $level%")
+
+                // Si tienes diferentes imágenes para diferentes niveles, puedes cambiarlas aquí
+                updateWaterGlassImage(level)
             }
 
             viewModel.errorMessage.observe(viewLifecycleOwner) { error ->
                 if (!error.isNullOrEmpty()) {
                     Log.e(TAG, "Error del ViewModel: $error")
-                    // Aquí puedes mostrar un Toast o Snackbar
+
+                    // Mostrar error al usuario (puedes usar Toast, Snackbar, etc.)
+                    showErrorToUser(error)
+
+                    // Limpiar el error después de mostrarlo
+                    viewModel.clearError()
                 }
             }
 
             viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-                // Aquí podrías mostrar/ocultar un indicador de carga
                 Log.d(TAG, "Estado de carga: $isLoading")
+
+                // Aquí puedes mostrar/ocultar un indicador de carga
+                showLoadingIndicator(isLoading)
             }
 
         } catch (e: Exception) {
@@ -195,6 +265,59 @@ class HidratacionFragment : Fragment() {
             viewModel.loadHydrationData(userName)
         } catch (e: Exception) {
             Log.e(TAG, "Error al cargar datos: ${e.message}", e)
+        }
+    }
+
+    // ✅ TIMER DE ACTUALIZACIÓN AUTOMÁTICA
+    private fun startUpdateTimer() {
+        try {
+            stopUpdateTimer() // Detener timer anterior si existe
+
+            updateTimer = Timer()
+            updateTimer?.scheduleAtFixedRate(object : TimerTask() {
+                override fun run() {
+                    // Verificar que el fragment aún esté activo
+                    if (isAdded && !isDetached && view != null) {
+                        // Ejecutar en el hilo principal
+                        requireActivity().runOnUiThread {
+                            try {
+                                Log.d(TAG, "Actualizando recordatorios automáticamente...")
+
+                                // Refrescar el adapter para actualizar los estados de horario
+                                val currentReminders = viewModel.hydrationReminders.value
+                                if (currentReminders != null) {
+                                    hydrationAdapter?.updateReminders(currentReminders)
+                                    Log.d(TAG, "Recordatorios actualizados: ${currentReminders.size}")
+                                }
+
+                                // También podrías actualizar otros datos si es necesario
+                                // viewModel.refreshData()
+
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error en actualización automática: ${e.message}", e)
+                            }
+                        }
+                    } else {
+                        Log.d(TAG, "Fragment no activo, deteniendo timer")
+                        stopUpdateTimer()
+                    }
+                }
+            }, UPDATE_INTERVAL_MS, UPDATE_INTERVAL_MS)
+
+            Log.d(TAG, "Timer de actualización iniciado (cada ${UPDATE_INTERVAL_MS / 1000} segundos)")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al iniciar timer de actualización: ${e.message}", e)
+        }
+    }
+
+    private fun stopUpdateTimer() {
+        try {
+            updateTimer?.cancel()
+            updateTimer = null
+            Log.d(TAG, "Timer de actualización detenido")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al detener timer: ${e.message}", e)
         }
     }
 
@@ -238,11 +361,44 @@ class HidratacionFragment : Fragment() {
         }
     }
 
+    // ✅ LIFECYCLE METHODS CON TIMER
+    override fun onResume() {
+        super.onResume()
+        Log.d(TAG, "HidratacionFragment onResume")
+
+        try {
+            // Asegurar que la navegación esté oculta al regresar
+            hideContentActivityNavigation()
+
+            // Iniciar timer de actualización automática
+            startUpdateTimer()
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error en onResume: ${e.message}", e)
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        Log.d(TAG, "HidratacionFragment onPause")
+
+        try {
+            // Detener timer de actualización automática
+            stopUpdateTimer()
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error en onPause: ${e.message}", e)
+        }
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
 
         try {
             Log.d(TAG, "HidratacionFragment onDestroyView")
+
+            // ✅ DETENER TIMER ANTES DE DESTRUIR LA VISTA
+            stopUpdateTimer()
 
             // ✅ RESTAURAR NAVEGACIÓN AL SALIR DEL FRAGMENT
             showContentActivityNavigation()
@@ -259,18 +415,6 @@ class HidratacionFragment : Fragment() {
 
         } catch (e: Exception) {
             Log.e(TAG, "Error en onDestroyView: ${e.message}", e)
-        }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        Log.d(TAG, "HidratacionFragment onResume")
-
-        try {
-            // Asegurar que la navegación esté oculta al regresar
-            hideContentActivityNavigation()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error en onResume: ${e.message}", e)
         }
     }
 }

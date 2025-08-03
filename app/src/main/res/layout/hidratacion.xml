@@ -49,7 +49,7 @@
                         android:layout_height="123dp"
                         android:layout_marginBottom="16dp"
                         android:scaleType="centerInside"
-                        android:src="@drawable/ic_water_glass" />
+                        android:src="@drawable/ic_water_glass_full" />
 
                     <TextView
                         android:id="@+id/tv_current_hydration"
@@ -80,6 +80,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="24dp"
                 android:nestedScrollingEnabled="false"
+                android:minHeight="700dp"
                 tools:listitem="@layout/item_hydration_reminder" />
 
             <!-- Tip de hidratación -->
