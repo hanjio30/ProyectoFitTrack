@@ -15,7 +15,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.fittrack.R
 import com.example.fittrack.View.ui.activities.ContentActivity
-import com.example.fittrack.view.ui.components.HeaderCardView
 import com.example.fittrack.ViewModel.HidratacionViewModel
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.example.fittrack.View.ui.adapters.HydrationRemindersAdapter
