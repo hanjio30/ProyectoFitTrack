@@ -35,6 +35,11 @@ import androidx.core.content.ContextCompat
 import com.example.fittrack.location.FilterResult
 import com.example.fittrack.location.GPSLocationFilter
 import com.example.fittrack.sensors.StepCounterManager
+import android.view.LayoutInflater
+import android.widget.Button
+import androidx.appcompat.app.AlertDialog
+
+
 
 class ContentActivity : AppCompatActivity(),
     OnboardingFragment.OnboardingListener,
@@ -975,8 +980,27 @@ class ContentActivity : AppCompatActivity(),
                     viewModel.navigateToFragment(ContentViewModel.FragmentType.RECORRIDO)
                 }
                 R.id.nav_salir -> {
-                    viewModel.logout(sharedPreferences)
+                    val dialogView = LayoutInflater.from(this).inflate(R.layout.custom_dialog_logout, null)
+
+                    val alertDialog = AlertDialog.Builder(this)
+                        .setView(dialogView)
+                        .create()
+
+                    val btnSalir = dialogView.findViewById<Button>(R.id.btnSalir)
+                    val btnCancelar = dialogView.findViewById<Button>(R.id.btnCancelar)
+
+                    btnSalir.setOnClickListener {
+                        viewModel.logout(sharedPreferences)
+                        alertDialog.dismiss()
+                    }
+
+                    btnCancelar.setOnClickListener {
+                        alertDialog.dismiss()
+                    }
+
+                    alertDialog.show()
                 }
+
             }
 
             binding.drawerLayout?.closeDrawer(GravityCompat.START)

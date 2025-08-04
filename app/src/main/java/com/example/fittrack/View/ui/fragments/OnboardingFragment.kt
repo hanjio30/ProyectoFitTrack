@@ -44,31 +44,31 @@ class OnboardingFragment : Fragment() {
     private fun setupContent(position: Int) {
         when (position) {
             0 -> {
-                binding.tvOnboardingTitle.text = "¡Hola! Estás a punto de empezar tu camino con FitTrack."
+                binding.tvOnboardingTitle.text = "Estás a punto de empezar tu camino con FitTrack."
                 binding.ivOnboardingImage.setImageResource(R.drawable.onboarding_image)
                 binding.tvOnboardingDescription.text = "No se trata de ser perfecto, sino constante. Y tú ya diste el primer paso. ✨"
                 binding.btnStartApp.visibility = View.GONE
             }
             1 -> {
-                binding.tvOnboardingTitle.text = "Tu cuerpo es más fuerte de lo que crees."
+                binding.tvOnboardingTitle.text = "Tu cuerpo es más fuerte de lo que crees, descúbrelo."
                 binding.ivOnboardingImage.setImageResource(R.drawable.onboarding_image)
-                binding.tvOnboardingDescription.text = "Solo 30 minutos de movimiento al día pueden marcar una gran diferencia en tu salud."
+                binding.tvOnboardingDescription.text = "Solo 30 minutos de movimiento al día pueden mejorar tu salud."
                 binding.btnStartApp.visibility = View.GONE
             }
             2 -> {
-                binding.tvOnboardingTitle.text = "No se trata solo de moverse."
+                binding.tvOnboardingTitle.text = "No se trata solo de moverse, sino de cuidar tu cuerpo."
                 binding.ivOnboardingImage.setImageResource(R.drawable.onboarding_image)
                 binding.tvOnboardingDescription.text = "Dormir bien, hidratarte y cuidar tu mente también son parte del progreso. 🧠💧"
                 binding.btnStartApp.visibility = View.GONE
             }
             3 -> {
-                binding.tvOnboardingTitle.text = "Los pequeños hábitos construyen grandes resultados."
+                binding.tvOnboardingTitle.text = "Los pequeños hábitos llegan a grandes resultados."
                 binding.ivOnboardingImage.setImageResource(R.drawable.onboarding_image)
                 binding.tvOnboardingDescription.text = "Registrar tu actividad te ayuda a mantenerte enfocado y motivado. 📈"
                 binding.btnStartApp.visibility = View.GONE
             }
             4 -> {
-                binding.tvOnboardingTitle.text = "Listo. Ahora es tu momento."
+                binding.tvOnboardingTitle.text = "Listo. Ahora es tu momento para comenzar y superarte."
                 binding.ivOnboardingImage.setImageResource(R.drawable.onboarding_image)
                 binding.tvOnboardingDescription.text = "Vamos paso a paso... pero siempre hacia adelante. 💪\n¡FitTrack va contigo!"
                 binding.btnStartApp.visibility = View.VISIBLE
