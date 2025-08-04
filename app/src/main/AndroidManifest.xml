@@ -1,13 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
-    <!-- Agregar este permiso en AndroidManifest.xml antes del tag <application> -->
+
+    <!-- ===== PERMISOS EXISTENTES ===== -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-
-    <!-- Si quieres usar solo recursos locales, también agrega: -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- ===== NUEVOS PERMISOS PARA EXERCISE TRACKING ===== -->
+    <!-- Permiso para reconocimiento de actividad física (contador de pasos) -->
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+
+    <!-- ===== CARACTERÍSTICAS DE HARDWARE (OPCIONALES) ===== -->
+    <!-- Especificar que la app puede usar sensores de pasos pero no son obligatorios -->
+    <uses-feature
+        android:name="android.hardware.sensor.stepcounter"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.sensor.stepdetector"
+        android:required="false" />
+
+    <!-- Especificar que GPS es preferido pero no obligatorio -->
+    <uses-feature
+        android:name="android.hardware.location.gps"
+        android:required="false" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -18,12 +36,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.FitTrack"
         tools:targetApi="31">
+
         <activity
             android:name=".View.ui.activities.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
@@ -32,9 +50,11 @@
             android:name=".View.ui.activities.ContentActivity"
             android:exported="false" />
 
+        <!-- Google Maps API Key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyBgKINUyyniohoLmAvEqt5oDO6f65Ov0-4" />
+
     </application>
 
 </manifest>
