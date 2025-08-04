@@ -274,7 +274,7 @@ class RecorridoFragment : Fragment() {
             }
             scaleType = ImageView.ScaleType.CENTER_CROP
             setBackgroundColor(ContextCompat.getColor(requireContext(), android.R.color.darker_gray))
-            // Puedes cambiar por: setImageResource(R.drawable.ic_placeholder_image)
+            setImageResource(R.drawable.ruta)
         }
 
         // === INFORMACIÓN DEL RECORRIDO ===
