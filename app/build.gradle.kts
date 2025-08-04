@@ -80,6 +80,13 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-extensions:2.2.0")
 
+    //MPAndroidChart para gráficos
+    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+
+
+    // Si no tienes estas, también las necesitarás:
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+
     // Google Play Services
     implementation("com.google.android.gms:play-services-maps:19.0.0")
     implementation("com.google.android.gms:play-services-location:21.3.0")

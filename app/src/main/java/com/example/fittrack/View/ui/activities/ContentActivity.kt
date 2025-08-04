@@ -320,7 +320,6 @@ class ContentActivity : AppCompatActivity(),
                 tiempoMs = totalTimeMs,
                 coordenadasInicio = startCoord,
                 coordenadasFin = endCoord,
-                pasosReales = realSteps,
                 tipoActividad = "Caminata" // Esto podría ser configurable
             )
 
