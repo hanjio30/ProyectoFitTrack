@@ -101,7 +101,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginBottom="16dp">
+            android:layout_marginBottom="26dp">
 
             <!-- Card de Actividad -->
             <androidx.cardview.widget.CardView
@@ -205,12 +205,22 @@
 
         </LinearLayout>
 
+        <TextView
+            android:id="@+id/tvTitleCards"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Seguimiento diario"
+            android:textColor="#1f2d36"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="22dp"/>
+
         <!-- Row con Hidratación y Racha -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginBottom="16dp">
+            android:layout_marginBottom="26dp">
 
             <!-- Card de Hidratación -->
             <androidx.cardview.widget.CardView

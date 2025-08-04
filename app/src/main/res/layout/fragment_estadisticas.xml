@@ -198,7 +198,7 @@
                     android:id="@+id/tvProgresoTexto"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="0 / 10,000 pasos"
+                    android:text="0 / 7,000 pasos"
                     android:textSize="14sp"
                     android:textColor="#666666"
                     android:layout_marginTop="8dp" />

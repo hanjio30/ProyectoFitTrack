@@ -297,7 +297,7 @@ class EstadisticasViewModel : ViewModel() {
 
     // ===== NUEVA FUNCIÓN: Actualizar meta diaria =====
     private fun actualizarMetaDiaria(pasosActuales: Int) {
-        val metaPasos = 10000 // Meta estándar, podrías hacer esto configurable
+        val metaPasos = 7000 // Meta estándar, podrías hacer esto configurable
         val porcentaje = ((pasosActuales.toFloat() / metaPasos) * 100).toInt().coerceAtMost(100)
         val metaAlcanzada = pasosActuales >= metaPasos
 
