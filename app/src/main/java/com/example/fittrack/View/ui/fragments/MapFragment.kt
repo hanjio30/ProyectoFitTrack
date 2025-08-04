@@ -146,9 +146,6 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             saveRoute()
         }
 
-        binding.tvEditRoute.setOnClickListener {
-            editRoute()
-        }
 
         binding.tvCancelRoute.setOnClickListener {
             cancelRoute()
