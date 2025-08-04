@@ -28,13 +28,14 @@ class RecorridoRepository {
         val totalRecorridos: Int = 0
     )
 
-    // ✨ FUNCIÓN PRINCIPAL MODIFICADA: Guardar recorrido + actualizar meta automáticamente
+    // ✨ FUNCIÓN PRINCIPAL RESTAURADA: Con parámetro pasosReales + integración de metas
     fun guardarRecorrido(
         userId: String,
         distanciaKm: Float,
         tiempoMs: Long,
         coordenadasInicio: LatLng?,
         coordenadasFin: LatLng?,
+        pasosReales: Int = -1, // ✅ RESTAURADO: Parámetro para pasos reales
         tipoActividad: String = "Caminata",
         notas: String = "",
         callback: Callback<Boolean>
@@ -59,11 +60,24 @@ class RecorridoRepository {
             val tiempoHoras = tiempoMs / 3600000f
             val velocidad = if (tiempoHoras > 0) distanciaKm / tiempoHoras else 0f
 
-            // Calcular pasos estimados (aproximado: 1300 pasos por km)
-            val pasosEstimados = (distanciaKm * 1300).toInt()
+            // ✅ RESTAURADO: Usar pasos reales si están disponibles, sino estimar
+            val pasos = if (pasosReales > 0) {
+                pasosReales
+            } else {
+                (distanciaKm * 1300).toInt() // Estimación como fallback
+            }
 
-            // Calcular calorías quemadas básico (aproximado: 60 cal por km para persona promedio)
-            val caloriasQuemadas = (distanciaKm * 60).toInt()
+            // ✅ RESTAURADO: Indicar si los pasos son reales o estimados
+            val pasosMetadata = if (pasosReales > 0) "real" else "estimado"
+
+            // ✅ RESTAURADO: Calcular calorías más precisas basadas en pasos reales si están disponibles
+            val caloriasQuemadas = if (pasosReales > 0) {
+                // Fórmula más precisa: aproximadamente 0.04 calorías por paso
+                (pasosReales * 0.04).toInt()
+            } else {
+                // Estimación básica por distancia
+                (distanciaKm * 60).toInt()
+            }
 
             // Crear documento del recorrido
             val recorridoData = hashMapOf(
@@ -92,7 +106,8 @@ class RecorridoRepository {
                 "origen" to if (coordenadasInicio != null) "Coordenada de inicio" else "Ubicación actual",
                 "destino" to if (coordenadasFin != null) "Coordenada final" else "Destino final",
                 "tipoActividad" to tipoActividad,
-                "pasos" to pasosEstimados,
+                "pasos" to pasos,
+                "pasosMetadata" to pasosMetadata, // ✅ RESTAURADO: "real" o "estimado"
                 "caloriasQuemadas" to caloriasQuemadas,
                 "notas" to notas,
                 "imagenBase64" to "",
@@ -103,6 +118,7 @@ class RecorridoRepository {
             )
 
             Log.d(TAG, "Guardando recorrido para usuario: $userId - Distancia: ${distanciaKm}km")
+            Log.d(TAG, "Pasos: $pasos ($pasosMetadata)") // ✅ RESTAURADO
             Log.d(TAG, "Datos del recorrido: $recorridoData")
 
             // Guardar en Firestore
@@ -118,7 +134,7 @@ class RecorridoRepository {
                         .addOnSuccessListener {
                             Log.d(TAG, "ID del documento actualizado correctamente")
 
-                            // ✨ NUEVA FUNCIONALIDAD: Actualizar meta diaria automáticamente
+                            // ✨ FUNCIONALIDAD DE TU COMPAÑERO: Actualizar meta diaria automáticamente
                             actualizarMetaDiariaAutomaticamente(userId, fecha, distanciaKm.toDouble())
 
                             callback.onSuccess(true)
@@ -143,7 +159,7 @@ class RecorridoRepository {
         }
     }
 
-    // ✨ NUEVA FUNCIÓN: Actualizar meta diaria automáticamente
+    // ✨ FUNCIÓN DE TU COMPAÑERO: Actualizar meta diaria automáticamente
     private fun actualizarMetaDiariaAutomaticamente(userId: String, fecha: String, distanciaKm: Double) {
         // Usar Coroutine para no bloquear el hilo principal
         CoroutineScope(Dispatchers.IO).launch {
@@ -165,7 +181,7 @@ class RecorridoRepository {
                     }
                 } else {
                     val error = resultado.exceptionOrNull()
-                    Log.w(TAG, "⚠️ Error al actualizar meta diaria: ${error?.message}", error)
+                    Log.w(TAG, "⚠ Error al actualizar meta diaria: ${error?.message}", error)
                 }
 
             } catch (e: Exception) {
@@ -174,13 +190,14 @@ class RecorridoRepository {
         }
     }
 
-    // ✨ NUEVA FUNCIÓN: Versión con callback para obtener el resultado de la meta
+    // ✨ FUNCIÓN DE TU COMPAÑERO: Versión con callback para obtener el resultado de la meta
     fun guardarRecorridoConMetaCallback(
         userId: String,
         distanciaKm: Float,
         tiempoMs: Long,
         coordenadasInicio: LatLng?,
         coordenadasFin: LatLng?,
+        pasosReales: Int = -1, // ✅ AGREGADO: Parámetro pasosReales también aquí
         tipoActividad: String = "Caminata",
         notas: String = "",
         callback: Callback<Boolean>,
@@ -190,7 +207,7 @@ class RecorridoRepository {
             val fecha = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
             // Reutilizar la lógica existente pero con callback adicional
-            guardarRecorrido(userId, distanciaKm, tiempoMs, coordenadasInicio, coordenadasFin, tipoActividad, notas,
+            guardarRecorrido(userId, distanciaKm, tiempoMs, coordenadasInicio, coordenadasFin, pasosReales, tipoActividad, notas,
                 object : Callback<Boolean> {
                     override fun onSuccess(result: Boolean?) {
                         // Callback original
@@ -225,7 +242,7 @@ class RecorridoRepository {
         }
     }
 
-    // ✨ NUEVA FUNCIÓN: Obtener progreso del día en tiempo real
+    // ✨ RESTO DE FUNCIONES DE TU COMPAÑERO (sin cambios)
     suspend fun obtenerProgresoDelDia(userId: String): Result<Double> {
         return try {
             val fecha = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
@@ -255,7 +272,6 @@ class RecorridoRepository {
         }
     }
 
-    // ✨ NUEVA FUNCIÓN: Forzar recálculo de meta para una fecha específica
     suspend fun recalcularMetaParaFecha(userId: String, fecha: String): Result<Boolean> {
         return try {
             Log.d(TAG, "🔄 Recalculando meta para fecha: $fecha")
@@ -276,12 +292,10 @@ class RecorridoRepository {
         }
     }
 
-    // ✨ NUEVA FUNCIÓN: Recalcular todas las metas históricas
     suspend fun recalcularTodasLasMetas(userId: String): Result<Boolean> {
         return try {
             Log.d(TAG, "🔄 Recalculando todas las metas para usuario: $userId")
 
-            // Obtener todas las fechas únicas de recorridos
             val recorridos = db.collection("users")
                 .document(userId)
                 .collection("recorridos")
@@ -298,7 +312,6 @@ class RecorridoRepository {
 
             Log.d(TAG, "📅 Fechas encontradas para recalcular: ${fechasUnicas.size}")
 
-            // Actualizar meta para cada fecha
             var metasActualizadas = 0
             for (fecha in fechasUnicas) {
                 try {
@@ -307,7 +320,7 @@ class RecorridoRepository {
                         metasActualizadas++
                         Log.d(TAG, "✅ Meta actualizada para: $fecha")
                     } else {
-                        Log.w(TAG, "⚠️ No se pudo actualizar meta para: $fecha")
+                        Log.w(TAG, "⚠ No se pudo actualizar meta para: $fecha")
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error al actualizar meta para $fecha: ${e.message}", e)
@@ -323,7 +336,6 @@ class RecorridoRepository {
         }
     }
 
-    // ✅ FUNCIÓN PARA OBTENER ESTADÍSTICAS DIARIAS
     suspend fun obtenerEstadisticasDiarias(
         userId: String,
         fecha: String? = null
@@ -350,7 +362,6 @@ class RecorridoRepository {
                 try {
                     val data = document.data
 
-                    // Obtener valores directamente de la BD
                     val calorias = (data["caloriasQuemadas"] as? Number)?.toInt() ?: 0
                     val minutos = (data["duracionMinutos"] as? Number)?.toInt() ?: 0
                     val pasos = (data["pasos"] as? Number)?.toInt() ?: 0
@@ -393,9 +404,8 @@ class RecorridoRepository {
         }
     }
 
-    // 📋 FUNCIONES EXISTENTES
+    // 📋 FUNCIONES EXISTENTES (sin cambios)
 
-    // Obtener recorridos del usuario
     suspend fun obtenerRecorridos(userId: String): Result<List<Recorrido>> {
         return try {
             val documents = db.collection("users")
@@ -411,7 +421,6 @@ class RecorridoRepository {
                 try {
                     val data = document.data
 
-                    // Convertir coordenadas de Maps
                     val coordenadasInicio = data["coordenadasInicio"]?.let { coords ->
                         if (coords is Map<*, *>) {
                             val lat = coords["latitude"] as? Double
@@ -457,7 +466,6 @@ class RecorridoRepository {
         }
     }
 
-    // Obtener recorridos por fecha específica
     suspend fun obtenerRecorridosPorFecha(userId: String, fecha: String): Result<List<Recorrido>> {
         return try {
             val documents = db.collection("users")

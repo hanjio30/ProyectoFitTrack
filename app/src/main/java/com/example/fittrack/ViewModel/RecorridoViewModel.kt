@@ -49,13 +49,17 @@ class RecorridoViewModel : ViewModel() {
         cargarRecorridos()
     }
 
+    // REEMPLAZAR el método agregarRecorrido existente en RecorridoViewModel.kt
+// con esta versión actualizada:
+
     fun agregarRecorrido(
         distanciaKm: Float,
         tiempoMs: Long,
         coordenadasInicio: LatLng?,
         coordenadasFin: LatLng?,
-        tipoActividad: String = "Caminata", // Opcional, por defecto "Caminata"
-        notas: String = "" // Opcional, por defecto vacío
+        pasosReales: Int = -1, // ← NUEVO PARÁMETRO
+        tipoActividad: String = "Caminata",
+        notas: String = ""
     ) {
         val userId = firebaseAuth.currentUser?.uid
         if (userId == null) {
@@ -68,6 +72,7 @@ class RecorridoViewModel : ViewModel() {
 
         Log.d(TAG, "Iniciando guardado de recorrido para usuario: $userId")
         Log.d(TAG, "Distancia: $distanciaKm km, Tiempo: $tiempoMs ms")
+        Log.d(TAG, "Pasos reales: $pasosReales") // ← NUEVO LOG
 
         recorridoRepository.guardarRecorrido(
             userId = userId,
@@ -75,6 +80,7 @@ class RecorridoViewModel : ViewModel() {
             tiempoMs = tiempoMs,
             coordenadasInicio = coordenadasInicio,
             coordenadasFin = coordenadasFin,
+            pasosReales = pasosReales, // ← PASAR PASOS REALES
             tipoActividad = tipoActividad,
             notas = notas,
             callback = object : Callback<Boolean> {
@@ -82,8 +88,6 @@ class RecorridoViewModel : ViewModel() {
                     Log.d(TAG, "Recorrido guardado exitosamente")
                     _isLoading.value = false
                     _guardadoExitoso.value = true
-
-                    // Recargar la lista de recorridos
                     cargarRecorridos()
                 }
 
